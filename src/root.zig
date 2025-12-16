@@ -4,7 +4,8 @@ const print = std.debug.print;
 // Simple memory tracking allocator wrapper
 pub const TrackedAllocator = struct {
     parent: std.mem.Allocator,
-    total_allocated: usize = 0,
+    total_bytes: usize = 0,
+    total_allocations: usize = 0,
 
     pub fn init(parent: std.mem.Allocator) TrackedAllocator {
         return .{ .parent = parent };
@@ -24,7 +25,8 @@ pub const TrackedAllocator = struct {
 
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
-        self.total_allocated += len;
+        self.total_bytes += len;
+        self.total_allocations += 1;
         return self.parent.rawAlloc(len, ptr_align, ret_addr);
     }
 
@@ -43,7 +45,8 @@ pub const TrackedAllocator = struct {
         return self.parent.rawRemap(buf, buf_align, new_len, ret_addr);
     }
 
-    pub fn getStats(self: *TrackedAllocator) !void{
-        print("The total bytes allocated are {d}\n", .{self.total_allocated});
+    pub fn getStats(self: *TrackedAllocator) !void {
+        print("The total bytes allocated are {d}\n", .{self.total_bytes});
+        print("The total allocations are {d}\n", .{self.total_allocations});
     }
 };
