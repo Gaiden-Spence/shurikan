@@ -68,8 +68,7 @@ pub const TrackedAllocator = struct {
     }
 
     pub fn printStats(self: *TrackedAllocator) !void {
-
-        const avg_allocation = @as(f64, @floatFromInt(self.total_bytes) / @floatFromInt(self.total_allocations));
+        const avg_allocation = @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
 
         print("The current usage of bytes are: {d}.\n", .{self.current_bytes});
         print("The total bytes allocated are: {d}.\n", .{self.total_bytes});
@@ -77,5 +76,6 @@ pub const TrackedAllocator = struct {
         print("The total bytes that have been freed are: {d}.\n", .{self.bytes_freed});
         print("The total operations are: {d} allocs and {d} frees.\n", .{self.total_allocations});
         print("The active allocations are: {d}.\n", .{self.active_allocations});
+        print("The average alloaction is {d:.2}.\n", .{avg_allocation});
     }
 };
