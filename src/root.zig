@@ -14,6 +14,8 @@ pub const TrackedAllocator = struct {
     total_deallocations: usize = 0,
     active_allocations: usize = 0,
 
+    array_bucket: [5]usize = [_]usize{0} ** 5,
+
     pub fn init(parent: std.mem.Allocator) TrackedAllocator {
         return .{ .parent = parent };
     }
@@ -42,6 +44,14 @@ pub const TrackedAllocator = struct {
 
         self.total_allocations += 1;
         self.active_allocations += 1;
+
+        switch (len) {
+            0...64 => self.array_bucket[0] += 1,
+            65...256 => self.array_bucket[1] += 1,
+            257...4096 => self.array_bucket[2] += 1,
+            4097...65536 => self.array_bucket[3] += 1,
+            else => self.array_bucket[4] += 1,
+        }
 
         return self.parent.rawAlloc(len, ptr_align, ret_addr);
     }
