@@ -1,6 +1,8 @@
 const std = @import("std");
 const print = std.debug.print;
 
+const histogram_tag_bucket = enum { Tiny, Small, Medium, Large, Giant };
+
 // Simple memory tracking allocator wrapper
 pub const TrackedAllocator = struct {
     parent: std.mem.Allocator,
@@ -87,5 +89,18 @@ pub const TrackedAllocator = struct {
         print("The total operations are: {d} allocs and {d} frees.\n", .{self.total_allocations});
         print("The active allocations are: {d}.\n", .{self.active_allocations});
         print("The average alloaction is {d:.2}.\n", .{avg_allocation});
+
+        for (std.enums.values(histogram_tag_bucket)) |bucket| {
+            const array_bucket_str = @tagName(bucket);
+            const array_bucket_index_val = @as(usize, @intFromEnum(bucket));
+            const bucket_allocation = self.array_bucket[array_bucket_index_val];
+            const bucket_pct = @as(f64, @floatFromInt(bucket_allocation)) / @as(f64, @floatFromInt(self.total_allocations)) * 100;
+            print("The bucket {s} makes is {d:.2}% of allocations ", .{ array_bucket_str, bucket_pct });
+            const bar_length = @as(usize, @intFromFloat((bucket_pct / 100) * 40));
+            for (0..bar_length) |_| {
+                print("█", .{});
+            }
+            print("\n", .{});
+        }
     }
 };
