@@ -2,6 +2,7 @@ const std = @import("std");
 const print = std.debug.print;
 
 const histogram_tag_bucket = enum { Tiny, Small, Medium, Large, Giant };
+const memory_log_info = struct { timestamp: i64, size: usize, location: usize };
 
 // Simple memory tracking allocator wrapper
 pub const TrackedAllocator = struct {
@@ -18,8 +19,17 @@ pub const TrackedAllocator = struct {
 
     array_bucket: [5]usize = [_]usize{0} ** 5,
 
+    memory_logs: std.AutoHashMap(usize, memory_log_info),
+    total_lifetime: i64 = 0,
+    lifetime_count: usize = 0,
+    min_lifetime: i64 = 0,
+    max_lifetime: i64 = 0,
+
     pub fn init(parent: std.mem.Allocator) TrackedAllocator {
-        return .{ .parent = parent };
+        return .{
+            .parent = parent,
+            .memory_logs = std.AutoHashMap(usize, memory_log_info).init(parent),
+        };
     }
 
     pub fn allocator(self: *TrackedAllocator) std.mem.Allocator {
@@ -55,7 +65,12 @@ pub const TrackedAllocator = struct {
             else => self.array_bucket[4] += 1,
         }
 
-        return self.parent.rawAlloc(len, ptr_align, ret_addr);
+        const ptr = self.parent.rawAlloc(len, ptr_align, ret_addr);
+        if (ptr) |p| {
+            const addr = @intFromPtr(p);
+            self.memory_logs.put(addr, .{ .timestamp = std.time.timestamp(), .size = len, .location = ret_addr }) catch {};
+        }
+        return ptr;
     }
 
     fn resize(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
@@ -65,6 +80,28 @@ pub const TrackedAllocator = struct {
 
     fn free(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, ret_addr: usize) void {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
+        self.parent.rawFree(buf, buf_align, ret_addr);
+
+        const addr = @intFromPtr(buf.ptr);
+        if (self.memory_logs.get(addr)) |info| {
+            const current_time = std.time.timestamp();
+            const lifetime = current_time - info.timestamp;
+
+            // Track lifetime statistics
+            self.total_lifetime += lifetime;
+            self.lifetime_count += 1;
+
+            if (lifetime < self.min_lifetime or self.min_lifetime == 0) {
+                self.min_lifetime = lifetime;
+            }
+            if (lifetime > self.max_lifetime) {
+                self.max_lifetime = lifetime;
+            }
+
+            // Remove from tracking
+            _ = self.memory_logs.remove(addr);
+        }
+
         self.parent.rawFree(buf, buf_align, ret_addr);
 
         self.bytes_freed += buf.len;
@@ -80,7 +117,6 @@ pub const TrackedAllocator = struct {
     }
 
     pub fn printStats(self: *TrackedAllocator) !void {
-        
         const avg_allocation = @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
         const frag_ratio = @as(f64, @floatFromInt(self.current_bytes)) / @as(f64, @floatFromInt(self.total_bytes));
 
@@ -93,16 +129,25 @@ pub const TrackedAllocator = struct {
         print("The average alloaction is {d:.2}.\n", .{avg_allocation});
         print("The fragmentation ratio is {d:.2}\n", .{frag_ratio});
 
+        if (self.lifetime_count > 0) {
+            const avg_lifetime = @as(f64, @floatFromInt(self.total_lifetime)) / @as(f64, @floatFromInt(self.lifetime_count));
+            print("\nLifetime Statistics:\n", .{});
+            print("Average lifetime: {d:.2} seconds\n", .{avg_lifetime});
+            print("Shortest lifetime: {d} seconds\n", .{self.min_lifetime});
+            print("Longest lifetime: {d} seconds\n", .{self.max_lifetime});
+            print("Still active allocations: {d}\n", .{self.memory_logs.count()});
+        }
+
         for (std.enums.values(histogram_tag_bucket)) |bucket| {
             const array_bucket_str = @tagName(bucket);
             const array_bucket_index_val = @as(usize, @intFromEnum(bucket));
-            
+
             const bucket_allocation = self.array_bucket[array_bucket_index_val];
             const bucket_pct = @as(f64, @floatFromInt(bucket_allocation)) / @as(f64, @floatFromInt(self.total_allocations)) * 100;
-            
+
             print("The bucket {s} makes is {d:.4}% of allocations ", .{ array_bucket_str, bucket_pct });
             const bar_length = @as(usize, @intFromFloat((bucket_pct / 100) * 40));
-            
+
             for (0..bar_length) |_| {
                 print("█", .{});
             }
