@@ -80,7 +80,9 @@ pub const TrackedAllocator = struct {
     }
 
     pub fn printStats(self: *TrackedAllocator) !void {
+        
         const avg_allocation = @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
+        const frag_ratio = @as(f64, @floatFromInt(self.current_bytes)) / @as(f64, @floatFromInt(self.total_bytes));
 
         print("The current usage of bytes are: {d}.\n", .{self.current_bytes});
         print("The total bytes allocated are: {d}.\n", .{self.total_bytes});
@@ -89,14 +91,18 @@ pub const TrackedAllocator = struct {
         print("The total operations are: {d} allocs and {d} frees.\n", .{self.total_allocations});
         print("The active allocations are: {d}.\n", .{self.active_allocations});
         print("The average alloaction is {d:.2}.\n", .{avg_allocation});
+        print("The fragmentation ratio is {d:.2}\n", .{frag_ratio});
 
         for (std.enums.values(histogram_tag_bucket)) |bucket| {
             const array_bucket_str = @tagName(bucket);
             const array_bucket_index_val = @as(usize, @intFromEnum(bucket));
+            
             const bucket_allocation = self.array_bucket[array_bucket_index_val];
             const bucket_pct = @as(f64, @floatFromInt(bucket_allocation)) / @as(f64, @floatFromInt(self.total_allocations)) * 100;
-            print("The bucket {s} makes is {d:.2}% of allocations ", .{ array_bucket_str, bucket_pct });
+            
+            print("The bucket {s} makes is {d:.4}% of allocations ", .{ array_bucket_str, bucket_pct });
             const bar_length = @as(usize, @intFromFloat((bucket_pct / 100) * 40));
+            
             for (0..bar_length) |_| {
                 print("█", .{});
             }
