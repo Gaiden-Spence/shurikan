@@ -16,6 +16,7 @@ pub const TrackedAllocator = struct {
     total_allocations: usize = 0,
     total_deallocations: usize = 0,
     active_allocations: usize = 0,
+    null_allocations: usize = 0,
 
     array_bucket: [5]usize = [_]usize{0} ** 5,
 
@@ -69,6 +70,8 @@ pub const TrackedAllocator = struct {
         if (ptr) |p| {
             const addr = @intFromPtr(p);
             self.memory_logs.put(addr, .{ .timestamp = std.time.timestamp(), .size = len, .location = ret_addr }) catch {};
+        } else {
+            self.null_allocations += 1;
         }
         return ptr;
     }
@@ -180,12 +183,12 @@ pub const TrackedAllocator = struct {
 
     pub fn getMemoryLogs(self: *TrackedAllocator) void {
         var mem_log_iterator = self.memory_logs.iterator();
-        
-        while (mem_log_iterator.next()) |entry|{
+
+        while (mem_log_iterator.next()) |entry| {
             const key = entry.key_ptr.*;
             const val_struct = entry.value_ptr.*;
 
-            log.info("Memory Address: 0x{x}, Value: {any}\n", .{key, val_struct});
+            log.info("Memory Address: 0x{x}, Value: {any}\n", .{ key, val_struct });
         }
     }
 
