@@ -1,8 +1,8 @@
 const std = @import("std");
-const print = std.debug.print;
 
 const histogram_tag_bucket = enum { Tiny, Small, Medium, Large, Giant };
 const memory_log_info = struct { timestamp: i64, size: usize, location: usize };
+const log = std.log.scoped(.memory_tracker);
 
 // Simple memory tracking allocator wrapper
 pub const TrackedAllocator = struct {
@@ -117,46 +117,46 @@ pub const TrackedAllocator = struct {
     }
 
     pub fn getCurrentUsage(self: *TrackedAllocator) void {
-        print("The current usage of bytes are: {d}.\n", .{self.current_bytes});
+        log.info("The current usage of bytes are: {d}.\n", .{self.current_bytes});
     }
 
     pub fn getTotalBytes(self: *TrackedAllocator) void {
-        print("The total bytes allocated are: {d}.\n", .{self.total_bytes});
+        log.info("The total bytes allocated are: {d}.\n", .{self.total_bytes});
     }
 
     pub fn getPeakUsage(self: *TrackedAllocator) void {
-        print("The peak usage is {d} bytes.\n", .{self.peak_usage});
+        log.info("The peak usage is {d} bytes.\n", .{self.peak_usage});
     }
 
     pub fn getBytesFreed(self: *TrackedAllocator) void {
-        print("The total bytes that have been freed are: {d}.\n", .{self.bytes_freed});
+        log.info("The total bytes that have been freed are: {d}.\n", .{self.bytes_freed});
     }
 
     pub fn getTotalAllocAndFrees(self: *TrackedAllocator) void {
-        print("The total operations are: {d} allocs and {d} frees.\n", .{ self.total_allocation, self.total_deallocations });
+        log.info("The total operations are: {d} allocs and {d} frees.\n", .{ self.total_allocation, self.total_deallocations });
     }
 
     pub fn getActiveAlloc(self: *TrackedAllocator) void {
-        print("The active allocations are: {d}.\n", .{self.active_allocations});
+        log.info("The active allocations are: {d}.\n", .{self.active_allocations});
     }
 
     pub fn getAvgAlloc(self: *TrackedAllocator) void {
         const avg_allocation = @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
-        print("The average alloaction is {d:.2}.\n", .{avg_allocation});
+        log.info("The average alloaction is {d:.2}.\n", .{avg_allocation});
     }
 
     pub fn getFragRatio(self: *TrackedAllocator) void {
         const frag_ratio = @as(f64, @floatFromInt(self.current_bytes)) / @as(f64, @floatFromInt(self.total_bytes));
-        print("The fragmentation ratio is {d:.2}\n", .{frag_ratio});
+        log.info("The fragmentation ratio is {d:.2}\n", .{frag_ratio});
     }
 
     pub fn getLifeTimeStats(self: TrackedAllocator) void {
         if (self.lifetime_count > 0) {
             const avg_lifetime = @as(f64, @floatFromInt(self.total_lifetime)) / @as(f64, @floatFromInt(self.lifetime_count));
-            print("\nLifetime Statistics:\n", .{});
-            print("Average lifetime: {d:.2} seconds\n", .{avg_lifetime});
-            print("Shortest lifetime: {d} seconds\n", .{self.min_lifetime});
-            print("Longest lifetime: {d} seconds\n", .{self.max_lifetime});
+            log.info("\nLifetime Statistics:\n", .{});
+            log.info("Average lifetime: {d:.2} seconds\n", .{avg_lifetime});
+            log.info("Shortest lifetime: {d} seconds\n", .{self.min_lifetime});
+            log.info("Longest lifetime: {d} seconds\n", .{self.max_lifetime});
         }
     }
 
@@ -168,17 +168,28 @@ pub const TrackedAllocator = struct {
             const bucket_allocation = self.array_bucket[array_bucket_index_val];
             const bucket_pct = @as(f64, @floatFromInt(bucket_allocation)) / @as(f64, @floatFromInt(self.total_allocations)) * 100;
 
-            print("The bucket {s} makes is {d:.4}% of allocations ", .{ array_bucket_str, bucket_pct });
+            log.info("The bucket {s} makes is {d:.4}% of allocations ", .{ array_bucket_str, bucket_pct });
             const bar_length = @as(usize, @intFromFloat((bucket_pct / 100) * 40));
 
             for (0..bar_length) |_| {
-                print("█", .{});
+                log.info("█", .{});
             }
-            print("\n", .{});
+            log.info("\n", .{});
         }
     }
 
-    pub fn printAllStats(self: *TrackedAllocator) !void {
+    pub fn getMemoryLogs(self: *TrackedAllocator) void {
+        var mem_log_iterator = self.memory_logs.iterator();
+        
+        while (mem_log_iterator.next()) |entry|{
+            const key = entry.key_ptr.*;
+            const val_struct = entry.value_ptr.*;
+
+            log.info("Memory Address: {s}, Value: {any}\n", .{key, val_struct});
+        }
+    }
+
+    pub fn logAllStats(self: *TrackedAllocator) !void {
         getCurrentUsage(self);
         getTotalBytes(self);
         getPeakUsage(self);
