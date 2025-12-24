@@ -185,7 +185,7 @@ pub const TrackedAllocator = struct {
             const key = entry.key_ptr.*;
             const val_struct = entry.value_ptr.*;
 
-            log.info("Memory Address: {s}, Value: {any}\n", .{key, val_struct});
+            log.info("Memory Address: 0x{x}, Value: {any}\n", .{key, val_struct});
         }
     }
 
