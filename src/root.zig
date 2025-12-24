@@ -116,28 +116,51 @@ pub const TrackedAllocator = struct {
         return self.parent.rawRemap(buf, buf_align, new_len, ret_addr);
     }
 
-    pub fn printStats(self: *TrackedAllocator) !void {
-        const avg_allocation = @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
-        const frag_ratio = @as(f64, @floatFromInt(self.current_bytes)) / @as(f64, @floatFromInt(self.total_bytes));
-
+    pub fn getCurrentUsage(self: *TrackedAllocator) void {
         print("The current usage of bytes are: {d}.\n", .{self.current_bytes});
-        print("The total bytes allocated are: {d}.\n", .{self.total_bytes});
-        print("The peak usage is {d}.\n", .{self.peak_usage});
-        print("The total bytes that have been freed are: {d}.\n", .{self.bytes_freed});
-        print("The total operations are: {d} allocs and {d} frees.\n", .{self.total_allocations});
-        print("The active allocations are: {d}.\n", .{self.active_allocations});
-        print("The average alloaction is {d:.2}.\n", .{avg_allocation});
-        print("The fragmentation ratio is {d:.2}\n", .{frag_ratio});
+    }
 
+    pub fn getTotalBytes(self: *TrackedAllocator) void {
+        print("The total bytes allocated are: {d}.\n", .{self.total_bytes});
+    }
+
+    pub fn getPeakUsage(self: *TrackedAllocator) void {
+        print("The peak usage is {d} bytes.\n", .{self.peak_usage});
+    }
+
+    pub fn getBytesFreed(self: *TrackedAllocator) void {
+        print("The total bytes that have been freed are: {d}.\n", .{self.bytes_freed});
+    }
+
+    pub fn getTotalAllocAndFrees(self: *TrackedAllocator) void {
+        print("The total operations are: {d} allocs and {d} frees.\n", .{ self.total_allocation, self.total_deallocations });
+    }
+
+    pub fn getActiveAlloc(self: *TrackedAllocator) void {
+        print("The active allocations are: {d}.\n", .{self.active_allocations});
+    }
+
+    pub fn getAvgAlloc(self: *TrackedAllocator) void {
+        const avg_allocation = @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
+        print("The average alloaction is {d:.2}.\n", .{avg_allocation});
+    }
+
+    pub fn getFragRatio(self: *TrackedAllocator) void {
+        const frag_ratio = @as(f64, @floatFromInt(self.current_bytes)) / @as(f64, @floatFromInt(self.total_bytes));
+        print("The fragmentation ratio is {d:.2}\n", .{frag_ratio});
+    }
+
+    pub fn getLifeTimeStats(self: TrackedAllocator) void {
         if (self.lifetime_count > 0) {
             const avg_lifetime = @as(f64, @floatFromInt(self.total_lifetime)) / @as(f64, @floatFromInt(self.lifetime_count));
             print("\nLifetime Statistics:\n", .{});
             print("Average lifetime: {d:.2} seconds\n", .{avg_lifetime});
             print("Shortest lifetime: {d} seconds\n", .{self.min_lifetime});
             print("Longest lifetime: {d} seconds\n", .{self.max_lifetime});
-            print("Still active allocations: {d}\n", .{self.memory_logs.count()});
         }
+    }
 
+    pub fn makeHistogram(self: *TrackedAllocator) void {
         for (std.enums.values(histogram_tag_bucket)) |bucket| {
             const array_bucket_str = @tagName(bucket);
             const array_bucket_index_val = @as(usize, @intFromEnum(bucket));
@@ -153,5 +176,20 @@ pub const TrackedAllocator = struct {
             }
             print("\n", .{});
         }
+    }
+
+    pub fn printAllStats(self: *TrackedAllocator) !void {
+        getCurrentUsage(self);
+        getTotalBytes(self);
+        getPeakUsage(self);
+        getBytesFreed(self);
+        getTotalAllocAndFrees(self);
+        getActiveAlloc(self);
+        getAvgAlloc(self);
+        getFragRatio(self);
+
+        getLifeTimeStats(self);
+
+        makeHistogram(self);
     }
 };
