@@ -192,6 +192,10 @@ pub const TrackedAllocator = struct {
         }
     }
 
+    pub fn getNullAlloc(self: *TrackedAllocator) void{
+        log.info("The total number of null allocations are {d}.\n", .{self.null_allocations});
+    }    
+
     pub fn logAllStats(self: *TrackedAllocator) !void {
         getCurrentUsage(self);
         getTotalBytes(self);
@@ -201,6 +205,7 @@ pub const TrackedAllocator = struct {
         getActiveAlloc(self);
         getAvgAlloc(self);
         getFragRatio(self);
+        getNullAlloc(self);
 
         getLifeTimeStats(self);
 
