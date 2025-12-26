@@ -228,7 +228,7 @@ pub const TrackedAllocator = struct {
     }
 
     pub fn getEfficiency(self: *TrackedAllocator) void {
-        const eff_ratio = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.current_bytes));
+        const eff_ratio = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_bytes));
         log.info("The efficiency ratio is {d:.4}.\n", .{eff_ratio});
     }
 
