@@ -219,13 +219,17 @@ pub const TrackedAllocator = struct {
 
     pub fn getAllocFailRt(self: *TrackedAllocator) void {
         const alloc_failure_pct = @as(f64, @floatFromInt(self.null_allocations)) / @as(f64, @floatFromInt(self.total_allocations)) * 100;
-
         log.info("The allocation failurerate is {d:.4}%.\n", .{alloc_failure_pct});
     }
 
     pub fn getAvgDealloc(self: *TrackedAllocator) void {
         const avg_dealloc = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_deallocations)) * 100;
         log.info("The avg dealloaction is {d:.2} bytes.\n", .{avg_dealloc});
+    }
+
+    pub fn getEfficiency(self: *TrackedAllocator) void {
+        const eff_ratio = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.current_bytes));
+        log.info("The efficiency ratio is {d:.4}.\n", .{eff_ratio});
     }
 
     pub fn logAllStats(self: *TrackedAllocator) !void {
