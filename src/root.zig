@@ -217,6 +217,12 @@ pub const TrackedAllocator = struct {
         log.info("The churn rate your memory is {d} sec.\n", .{churn_rate});
     }
 
+    pub fn getAllocFailRt(self: *TrackedAllocator) void {
+        const alloc_failure_pct = @as(f64, @floatFromInt(self.null_allocations)) / @as(f64, @floatFromInt(self.total_allocations)) * 100;
+
+        log.info("The allocation failurerate is {d:.4}%.\n", .{alloc_failure_pct});
+    }
+
     pub fn logAllStats(self: *TrackedAllocator) !void {
         getCurrentUsage(self);
         getTotalBytes(self);
@@ -233,5 +239,6 @@ pub const TrackedAllocator = struct {
         makeHistogram(self);
 
         getChurnRate(self);
+        getAllocFailRt(self);
     }
 };
