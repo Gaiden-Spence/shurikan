@@ -17,6 +17,8 @@ pub const TrackedAllocator = struct {
     total_deallocations: usize = 0,
     active_allocations: usize = 0,
     null_allocations: usize = 0,
+    first_allocation_timestamp: i64 = 0,
+    last_allocation_timestamp: i64 = 0, //
 
     array_bucket: [5]usize = [_]usize{0} ** 5,
 
@@ -48,6 +50,7 @@ pub const TrackedAllocator = struct {
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
 
+        //Get track byteusage
         self.total_bytes += len;
         self.current_bytes += len;
 
@@ -55,9 +58,11 @@ pub const TrackedAllocator = struct {
             self.peak_usage = self.current_bytes;
         }
 
+        //Track allocations
         self.total_allocations += 1;
         self.active_allocations += 1;
 
+        //Track Histogram allocations
         switch (len) {
             0...64 => self.array_bucket[0] += 1,
             65...256 => self.array_bucket[1] += 1,
@@ -66,13 +71,22 @@ pub const TrackedAllocator = struct {
             else => self.array_bucket[4] += 1,
         }
 
+        //Track Memory Logs
         const ptr = self.parent.rawAlloc(len, ptr_align, ret_addr);
         if (ptr) |p| {
             const addr = @intFromPtr(p);
-            self.memory_logs.put(addr, .{ .timestamp = std.time.timestamp(), .size = len, .location = ret_addr }) catch {};
+            self.memory_logs.put(addr, .{ .timestamp = std.time.milliTimeStamp(), .size = len, .location = ret_addr }) catch {};
         } else {
             self.null_allocations += 1;
         }
+
+        //Track timestamps
+        if (self.total_allocations == 1) {
+            self.first_allocation_timestamp = std.time.milliTimeStamp();
+        }
+
+        self.last_allocation_timestamp = std.milliTimeStamp();
+
         return ptr;
     }
 
@@ -87,7 +101,7 @@ pub const TrackedAllocator = struct {
 
         const addr = @intFromPtr(buf.ptr);
         if (self.memory_logs.get(addr)) |info| {
-            const current_time = std.time.timestamp();
+            const current_time = std.time.milliTimeStamp();
             const lifetime = current_time - info.timestamp;
 
             // Track lifetime statistics
@@ -192,9 +206,16 @@ pub const TrackedAllocator = struct {
         }
     }
 
-    pub fn getNullAlloc(self: *TrackedAllocator) void{
+    pub fn getNullAlloc(self: *TrackedAllocator) void {
         log.info("The total number of null allocations are {d}.\n", .{self.null_allocations});
-    }    
+    }
+
+    pub fn getChurnRate(self: *TrackedAllocator) void {
+        const time_diff: i64 = self.last_allocation_timestamp - self.last_allocation_timestamp;
+        const churn_rate = @as(f64, @floatFromInt(time_diff)) / @as(f64, @floatFromInt(self.total_allocations));
+
+        log.info("The churn rate your memory is {d} sec.\n", .{churn_rate});
+    }
 
     pub fn logAllStats(self: *TrackedAllocator) !void {
         getCurrentUsage(self);
@@ -210,5 +231,7 @@ pub const TrackedAllocator = struct {
         getLifeTimeStats(self);
 
         makeHistogram(self);
+
+        getChurnRate(self);
     }
 };
