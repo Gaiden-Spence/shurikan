@@ -223,6 +223,11 @@ pub const TrackedAllocator = struct {
         log.info("The allocation failurerate is {d:.4}%.\n", .{alloc_failure_pct});
     }
 
+    pub fn getAvgDealloc(self: *TrackedAllocator) void {
+        const avg_dealloc = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_deallocations)) * 100;
+        log.info("The avg dealloaction is {d:.2} bytes.\n", .{avg_dealloc});
+    }
+
     pub fn logAllStats(self: *TrackedAllocator) !void {
         getCurrentUsage(self);
         getTotalBytes(self);
