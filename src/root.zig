@@ -17,12 +17,14 @@ pub const TrackedAllocator = struct {
     total_deallocations: usize = 0,
     active_allocations: usize = 0,
     null_allocations: usize = 0,
-    first_allocation_timestamp: i64 = 0,
-    last_allocation_timestamp: i64 = 0, //
+    first_allocation_timestamp: i64 = 0, //unix timecode
+    last_allocation_timestamp: i64 = 0,
 
-    array_bucket: [5]usize = [_]usize{0} ** 5,
+    alloc_array_bucket: [5]usize = [_]usize{0} ** 5,
 
     memory_logs: std.AutoHashMap(usize, memory_log_info),
+    largest_allocation: ?memory_log_info = null,
+
     total_lifetime: i64 = 0,
     lifetime_count: usize = 0,
     min_lifetime: i64 = 0,
@@ -64,11 +66,11 @@ pub const TrackedAllocator = struct {
 
         //Track Histogram allocations
         switch (len) {
-            0...64 => self.array_bucket[0] += 1,
-            65...256 => self.array_bucket[1] += 1,
-            257...4096 => self.array_bucket[2] += 1,
-            4097...65536 => self.array_bucket[3] += 1,
-            else => self.array_bucket[4] += 1,
+            0...64 => self.alloc_array_bucket[0] += 1,
+            65...256 => self.alloc_array_bucket[1] += 1,
+            257...4096 => self.alloc_array_bucket[2] += 1,
+            4097...65536 => self.alloc_array_bucket[3] += 1,
+            else => self.alloc_array_bucket[4] += 1,
         }
 
         //Track Memory Logs
@@ -76,8 +78,6 @@ pub const TrackedAllocator = struct {
         if (ptr) |p| {
             const addr = @intFromPtr(p);
             self.memory_logs.put(addr, .{ .timestamp = std.time.milliTimeStamp(), .size = len, .location = ret_addr }) catch {};
-        } else {
-            self.null_allocations += 1;
         }
 
         //Track timestamps
@@ -86,6 +86,11 @@ pub const TrackedAllocator = struct {
         }
 
         self.last_allocation_timestamp = std.milliTimeStamp();
+
+        //track largest allocation
+        if (self.largest_allocation == null or len > self.largest_allocation.?.size) {
+            self.largest_allocation = .{ .timestamp = self.current_timestamp, .size = len, .location = ret_addr };
+        }
 
         return ptr;
     }
@@ -206,20 +211,11 @@ pub const TrackedAllocator = struct {
         }
     }
 
-    pub fn getNullAlloc(self: *TrackedAllocator) void {
-        log.info("The total number of null allocations are {d}.\n", .{self.null_allocations});
-    }
-
     pub fn getChurnRate(self: *TrackedAllocator) void {
-        const time_diff: i64 = self.last_allocation_timestamp - self.last_allocation_timestamp;
+        const time_diff: i64 = self.last_allocation_timestamp - self.first_allocation_timestamp;
         const churn_rate = @as(f64, @floatFromInt(time_diff)) / @as(f64, @floatFromInt(self.total_allocations));
 
         log.info("The churn rate your memory is {d} sec.\n", .{churn_rate});
-    }
-
-    pub fn getAllocFailRt(self: *TrackedAllocator) void {
-        const alloc_failure_pct = @as(f64, @floatFromInt(self.null_allocations)) / @as(f64, @floatFromInt(self.total_allocations)) * 100;
-        log.info("The allocation failurerate is {d:.4}%.\n", .{alloc_failure_pct});
     }
 
     pub fn getAvgDealloc(self: *TrackedAllocator) void {
@@ -232,6 +228,10 @@ pub const TrackedAllocator = struct {
         log.info("The efficiency ratio is {d:.4}.\n", .{eff_ratio});
     }
 
+    pub fn getTopAlloc(self: *TrackedAllocator) void {
+        log.info("The largest allocation contains these attributes {any}\n", .{self.largest_allocation});
+    }
+
     pub fn logAllStats(self: *TrackedAllocator) !void {
         getCurrentUsage(self);
         getTotalBytes(self);
@@ -241,13 +241,12 @@ pub const TrackedAllocator = struct {
         getActiveAlloc(self);
         getAvgAlloc(self);
         getFragRatio(self);
-        getNullAlloc(self);
+        getTopAlloc(self);
 
         getLifeTimeStats(self);
 
         makeHistogram(self);
 
         getChurnRate(self);
-        getAllocFailRt(self);
     }
 };
