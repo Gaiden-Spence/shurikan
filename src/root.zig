@@ -21,6 +21,7 @@ pub const TrackedAllocator = struct {
     last_allocation_timestamp: i64 = 0,
 
     alloc_array_bucket: [5]usize = [_]usize{0} ** 5,
+    bytes_array_bucket: [5]usize = [_]usize{0} ** 5,
 
     memory_logs: std.AutoHashMap(usize, memory_log_info),
     largest_allocation: ?memory_log_info = null,
@@ -64,13 +65,31 @@ pub const TrackedAllocator = struct {
         self.total_allocations += 1;
         self.active_allocations += 1;
 
-        //Track Histogram allocations
+        //Track Histogram allocations and bytes
         switch (len) {
-            0...64 => self.alloc_array_bucket[0] += 1,
-            65...256 => self.alloc_array_bucket[1] += 1,
-            257...4096 => self.alloc_array_bucket[2] += 1,
-            4097...65536 => self.alloc_array_bucket[3] += 1,
-            else => self.alloc_array_bucket[4] += 1,
+            0...64 => {
+                self.alloc_array_bucket[0] += 1;
+                self.bytes_array_bucket[0] += len;
+            },
+
+            65...256 => {
+                self.alloc_array_bucket[1] += 1;
+                self.bytes_array_bucket[1] += len;
+            },
+            257...4096 => {
+                self.alloc_array_bucket[2] += 1;
+                self.bytes_array_bucket[2] += len;
+            },
+
+            4097...65536 => {
+                self.alloc_array_bucket[3] += 1;
+                self.bytes_array_bucket[3] += len;
+            },
+
+            else => {
+                self.alloc_array_bucket[4] += 1;
+                self.bytes_array_bucket[4] += len;
+            },
         }
 
         //Track Memory Logs
@@ -87,7 +106,7 @@ pub const TrackedAllocator = struct {
 
         self.last_allocation_timestamp = std.milliTimeStamp();
 
-        //track largest allocation
+        //Track largest allocation
         if (self.largest_allocation == null or len > self.largest_allocation.?.size) {
             self.largest_allocation = .{ .timestamp = self.current_timestamp, .size = len, .location = ret_addr };
         }
@@ -230,6 +249,22 @@ pub const TrackedAllocator = struct {
 
     pub fn getTopAlloc(self: *TrackedAllocator) void {
         log.info("The largest allocation contains these attributes {any}\n", .{self.largest_allocation});
+    }
+
+    pub fn resetAttributes(self: *TrackedAllocator) void{
+        const T = @TypeOf(self);
+        
+        inline for (std.meta.fields(T)) |field|{
+            const field_value = &@field(self, field.name);
+
+            if (@hasDecl(@TypeOf(field_value.*), "clearRetainingCapacity")) {
+                field_value.clearRetainingCapacity();
+            } else{
+                @field(self, field.name) = @field(T{}, field.name);
+            }
+        }
+
+        
     }
 
     pub fn logAllStats(self: *TrackedAllocator) !void {
