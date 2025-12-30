@@ -201,12 +201,12 @@ pub const TrackedAllocator = struct {
         }
     }
 
-    pub fn makeHistogram(self: *TrackedAllocator) void {
+    pub fn makeAllocHistogram(self: *TrackedAllocator) void {
         for (std.enums.values(histogram_tag_bucket)) |bucket| {
             const array_bucket_str = @tagName(bucket);
             const array_bucket_index_val = @as(usize, @intFromEnum(bucket));
 
-            const bucket_allocation = self.array_bucket[array_bucket_index_val];
+            const bucket_allocation = self.alloc_array_bucket[array_bucket_index_val];
             const bucket_pct = @as(f64, @floatFromInt(bucket_allocation)) / @as(f64, @floatFromInt(self.total_allocations)) * 100;
 
             log.info("The bucket {s} makes is {d:.4}% of allocations ", .{ array_bucket_str, bucket_pct });
@@ -217,6 +217,25 @@ pub const TrackedAllocator = struct {
             }
             log.info("\n", .{});
         }
+    }
+
+    pub fn makeByteHistogram(self: *TrackedAllocator) void{
+        for (std.enums.values(histogram_tag_bucket)) |bucket| {
+            const array_bucket_str = @tagName(bucket);
+            const array_bucket_index_val = @as(usize, @intFromEnum(bucket));
+
+            const bucket_allocation = self.bytes_array_bucket[array_bucket_index_val];
+            const bucket_pct = @as(f64, @floatFromInt(bucket_allocation)) / @as(f64, @floatFromInt(self.total_bytes)) * 100;
+
+            log.info("The bucket {s} makes up {d:.4}% for all bytes.", .{ array_bucket_str, bucket_pct });
+            const bar_length = @as(usize, @intFromFloat((bucket_pct / 100) * 40));
+
+            for (0..bar_length) |_| {
+                log.info("█", .{});
+            }
+            log.info("\n", .{});
+        }
+
     }
 
     pub fn getMemoryLogs(self: *TrackedAllocator) void {
@@ -251,6 +270,25 @@ pub const TrackedAllocator = struct {
         log.info("The largest allocation contains these attributes {any}\n", .{self.largest_allocation});
     }
 
+    pub fn percentileMemory(self: *TrackedAllocator, percentile:f32) void{
+        //add error check
+        
+        const temp_alloc = self.parent;
+
+        var percentile_array = std.ArrayList(usize).init(temp_alloc);
+        defer percentile_array.deinit();
+
+        var mem_log_iterator = self.memory_logs.iterator();
+
+        while (mem_log_iterator.next()) |entry|{
+            const val_struct = entry.value_ptr.*;
+
+            try percentile_array.append(val_struct.size);
+        }
+        //now add your sort function and do the calculations for 
+
+    }
+
     pub fn resetAttributes(self: *TrackedAllocator) void{
         const T = @TypeOf(self);
         
@@ -280,7 +318,7 @@ pub const TrackedAllocator = struct {
 
         getLifeTimeStats(self);
 
-        makeHistogram(self);
+        makeAllocHistogram(self);
 
         getChurnRate(self);
     }
