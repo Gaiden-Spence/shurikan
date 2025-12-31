@@ -219,7 +219,7 @@ pub const TrackedAllocator = struct {
         }
     }
 
-    pub fn makeByteHistogram(self: *TrackedAllocator) void{
+    pub fn makeByteHistogram(self: *TrackedAllocator) void {
         for (std.enums.values(histogram_tag_bucket)) |bucket| {
             const array_bucket_str = @tagName(bucket);
             const array_bucket_index_val = @as(usize, @intFromEnum(bucket));
@@ -235,7 +235,6 @@ pub const TrackedAllocator = struct {
             }
             log.info("\n", .{});
         }
-
     }
 
     pub fn getMemoryLogs(self: *TrackedAllocator) void {
@@ -270,9 +269,11 @@ pub const TrackedAllocator = struct {
         log.info("The largest allocation contains these attributes {any}\n", .{self.largest_allocation});
     }
 
-    pub fn percentileMemory(self: *TrackedAllocator, percentile:f32) void{
-        //add error check
-        
+    pub fn percentileMemory(self: *TrackedAllocator, pct: f16) !void {
+        if (pct < 0 or pct > 100) {
+            return error.InvalidPercentile;
+        }
+
         const temp_alloc = self.parent;
 
         var percentile_array = std.ArrayList(usize).init(temp_alloc);
@@ -280,29 +281,108 @@ pub const TrackedAllocator = struct {
 
         var mem_log_iterator = self.memory_logs.iterator();
 
-        while (mem_log_iterator.next()) |entry|{
+        while (mem_log_iterator.next()) |entry| {
             const val_struct = entry.value_ptr.*;
 
             try percentile_array.append(val_struct.size);
         }
-        //now add your sort function and do the calculations for 
+        //now add your sort function and do the calculations for
+        if (percentile_array.items.len == 0) {
+            return error.EmptyArray;
+        }
+
+        const percentile = try percentilCalculation(self, percentile_array.items, pct);
+        return percentile;
 
     }
 
-    pub fn resetAttributes(self: *TrackedAllocator) void{
+    fn percentilCalculation(self: *TrackedAllocator, values: []usize, pct: f16) !f64 {
+        const n = values.len;
+
+        if (n == 1) {
+            return values[0];
+        }
+
+        const index = (@as(f64, pct) / 100.0) * @as(f64, @floatFromInt(values.len - 1));
+        if (index == @floor(index)) {
+            const k = @as(usize, @intFromFloat(index + 1));
+            return try quickSelect(self, allocator, values, k);
+        }
+
+        const lower_idx = @as(usize, @intFromFloat(@floor(index)));
+        const upper_idx = lower_idx + 1;
+
+        if (upper_idx >= n) {
+            return try quickSelect(self, allocator, values, n - 1);
+        }
+
+        const lower_value = try quickSelect(self, allocator, values, lower_idx + 1);
+
+        const values_copy = try allocator.dupe(self, values);
+        defer allocator.free(values_copy);
+
+        const upper_value = try quickSelect(self, allocator, values_copy, upper_idx + 1);
+        const weight = index - @floor(index);
+
+        const interpolated = @as(f64, @floatCast(lower_value)) * (1 - weight) +
+            @as(f64, @floatCast(upper_value)) * weight;
+        return interpolated;
+    }
+
+    //helper function to sort array
+    fn quickSelect(self: *TrackedAllocator, arr: []usize, k: usize) ![]usize {
+        const temp_alloc = self.parent;
+
+        if (arr.len == 1) {
+            return arr[0];
+        }
+
+        var smaller = std.ArrayList(usize).init(temp_alloc);
+        try smaller.ensureTotalCapacity(arr.len);
+        defer smaller.deinit();
+
+        var equal = std.ArrayList(usize).init(temp_alloc);
+        try smaller.ensureTotalCapacity(arr.len);
+        defer equal.deinit();
+
+        var larger = std.ArrayList(usize).init(temp_alloc);
+        try larger.ensureTotalCapacity(arr.len);
+        defer larger.deinit();
+
+        const Rndgen = std.rand.DefaultPrng;
+        var rnd = Rndgen.init(0);
+        const random_index = rnd.random().unitLessThan(usize, arr.len);
+        const pivot = arr[random_index];
+
+        for (arr) |x| {
+            if (x < pivot) {
+                smaller.appendAssumeCapacity(x);
+            } else if (x == pivot) {
+                equal.appendAssumeCapacity(x);
+            }
+        }
+
+        if (k <= smaller.items.len) {
+            return quickSelect(self, smaller.items, k);
+        } else if (k <= (smaller.items.len + equal.items.len)) {
+            return pivot;
+        } else {
+            return quickSelect(self, larger.items, k - smaller.items.len - equal.items.len);
+        }
+    }
+
+    pub fn resetAttributes(self: *TrackedAllocator) void {
         const T = @TypeOf(self);
-        
-        inline for (std.meta.fields(T)) |field|{
+
+        inline for (std.meta.fields(T)) |field| {
             const field_value = &@field(self, field.name);
 
             if (@hasDecl(@TypeOf(field_value.*), "clearRetainingCapacity")) {
                 field_value.clearRetainingCapacity();
-            } else{
+            } else {
                 @field(self, field.name) = @field(T{}, field.name);
             }
         }
-
-        
     }
 
     pub fn logAllStats(self: *TrackedAllocator) !void {
