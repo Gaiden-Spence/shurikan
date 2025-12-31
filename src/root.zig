@@ -306,22 +306,22 @@ pub const TrackedAllocator = struct {
         const index = (@as(f64, pct) / 100.0) * @as(f64, @floatFromInt(values.len - 1));
         if (index == @floor(index)) {
             const k = @as(usize, @intFromFloat(index + 1));
-            return try quickSelect(self, allocator, values, k);
+            return try quickSelect(self, values, k);
         }
 
         const lower_idx = @as(usize, @intFromFloat(@floor(index)));
         const upper_idx = lower_idx + 1;
 
         if (upper_idx >= n) {
-            return try quickSelect(self, allocator, values, n - 1);
+            return try quickSelect(self, values, n - 1);
         }
 
-        const lower_value = try quickSelect(self, allocator, values, lower_idx + 1);
+        const lower_value = try quickSelect(self, values, lower_idx + 1);
 
         const values_copy = try allocator.dupe(self, values);
         defer allocator.free(values_copy);
 
-        const upper_value = try quickSelect(self, allocator, values_copy, upper_idx + 1);
+        const upper_value = try quickSelect(self, values_copy, upper_idx + 1);
         const weight = index - @floor(index);
 
         const interpolated = @as(f64, @floatCast(lower_value)) * (1 - weight) +
