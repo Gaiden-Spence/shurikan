@@ -157,16 +157,16 @@ pub const TrackedAllocator = struct {
         return self.parent.rawRemap(buf, buf_align, new_len, ret_addr);
     }
 
-    pub fn getCurrentUsage(self: *TrackedAllocator) void {
-        log.info("The current usage of bytes are: {d}.\n", .{self.current_bytes});
+    pub fn getCurrentUsage(self: *TrackedAllocator) usize {
+        return self.current_bytes;
     }
 
-    pub fn getTotalBytes(self: *TrackedAllocator) void {
-        log.info("The total bytes allocated are: {d}.\n", .{self.total_bytes});
+    pub fn getTotalBytes(self: *TrackedAllocator) usize {
+        return self.total_bytes;
     }
 
-    pub fn getPeakUsage(self: *TrackedAllocator) void {
-        log.info("The peak usage is {d} bytes.\n", .{self.peak_usage});
+    pub fn getPeakUsage(self: *TrackedAllocator) usize {
+        return self.peak_usage;
     }
 
     pub fn getBytesFreed(self: *TrackedAllocator) void {
@@ -269,7 +269,7 @@ pub const TrackedAllocator = struct {
         log.info("The largest allocation contains these attributes {any}\n", .{self.largest_allocation});
     }
 
-    pub fn percentileMemory(self: *TrackedAllocator, pct: f16) !void {
+    pub fn percentileMemory(self: *TrackedAllocator, pct: f64) !f64 {
         if (pct < 0 or pct > 100) {
             return error.InvalidPercentile;
         }
@@ -283,88 +283,101 @@ pub const TrackedAllocator = struct {
 
         while (mem_log_iterator.next()) |entry| {
             const val_struct = entry.value_ptr.*;
-
             try percentile_array.append(val_struct.size);
         }
-        //now add your sort function and do the calculations for
+
         if (percentile_array.items.len == 0) {
             return error.EmptyArray;
         }
 
-        const percentile = try percentilCalculation(self, percentile_array.items, pct);
+        const percentile = try percentileCalculation(self, percentile_array.items, pct);
         return percentile;
-
     }
 
-    fn percentilCalculation(self: *TrackedAllocator, values: []usize, pct: f16) !f64 {
+    fn percentileCalculation(self: *TrackedAllocator, values: []usize, pct: f64) !f64 {
         const n = values.len;
 
+        if (n == 0) {
+            return error.EmptyArray;
+        }
+
         if (n == 1) {
-            return values[0];
+            return @floatFromInt(values[0]);
         }
 
-        const index = (@as(f64, pct) / 100.0) * @as(f64, @floatFromInt(values.len - 1));
+        // Calculate the position in the sorted array
+        const index = (pct / 100.0) * @as(f64, @floatFromInt(n - 1));
+
         if (index == @floor(index)) {
-            const k = @as(usize, @intFromFloat(index + 1));
-            return try quickSelect(self, values, k);
+            // Exact index, no interpolation needed
+            const k = @as(usize, @intFromFloat(index));
+            const value = try quickSelect(self, values, k);
+            return @floatFromInt(value);
         }
 
+        // Need to interpolate between two values
         const lower_idx = @as(usize, @intFromFloat(@floor(index)));
         const upper_idx = lower_idx + 1;
 
         if (upper_idx >= n) {
-            return try quickSelect(self, values, n - 1);
+            const value = try quickSelect(self, values, n - 1);
+            return @floatFromInt(value);
         }
 
-        const lower_value = try quickSelect(self, values, lower_idx + 1);
+        // Get lower value
+        const lower_value = try quickSelect(self, values, lower_idx);
 
-        const values_copy = try allocator.dupe(self, values);
-        defer allocator.free(values_copy);
+        // Get upper value (upper_idx is adjacent to lower_idx after partitioning)
+        const upper_value = try quickSelect(self, values, upper_idx);
 
-        const upper_value = try quickSelect(self, values_copy, upper_idx + 1);
+        // Interpolate
         const weight = index - @floor(index);
+        const interpolated = @as(f64, @floatFromInt(lower_value)) * (1.0 - weight) +
+            @as(f64, @floatFromInt(upper_value)) * weight;
 
-        const interpolated = @as(f64, @floatCast(lower_value)) * (1 - weight) +
-            @as(f64, @floatCast(upper_value)) * weight;
         return interpolated;
     }
 
     //helper function to sort array
-    fn quickSelect(self: *TrackedAllocator, arr: []usize, k: usize) ![]usize {
-        const temp_alloc = self.parent;
+    fn quickSelect(self: *TrackedAllocator, arr: []usize, k: usize) !usize {
+        if (arr.len == 0) {
+            return error.EmptyArray;
+        }
 
         if (arr.len == 1) {
             return arr[0];
         }
 
+        const temp_alloc = self.parent;
+
         var smaller = std.ArrayList(usize).init(temp_alloc);
-        try smaller.ensureTotalCapacity(arr.len);
         defer smaller.deinit();
+        try smaller.ensureTotalCapacity(arr.len);
 
         var equal = std.ArrayList(usize).init(temp_alloc);
-        try smaller.ensureTotalCapacity(arr.len);
         defer equal.deinit();
+        try equal.ensureTotalCapacity(arr.len);
 
         var larger = std.ArrayList(usize).init(temp_alloc);
-        try larger.ensureTotalCapacity(arr.len);
         defer larger.deinit();
+        try larger.ensureTotalCapacity(arr.len);
 
-        const Rndgen = std.rand.DefaultPrng;
-        var rnd = Rndgen.init(0);
-        const random_index = rnd.random().unitLessThan(usize, arr.len);
-        const pivot = arr[random_index];
+        // Choose pivot (middle element is often a good choice)
+        const pivot = arr[arr.len / 2];
 
         for (arr) |x| {
             if (x < pivot) {
                 smaller.appendAssumeCapacity(x);
             } else if (x == pivot) {
                 equal.appendAssumeCapacity(x);
+            } else {
+                larger.appendAssumeCapacity(x);
             }
         }
 
-        if (k <= smaller.items.len) {
+        if (k < smaller.items.len) {
             return quickSelect(self, smaller.items, k);
-        } else if (k <= (smaller.items.len + equal.items.len)) {
+        } else if (k < smaller.items.len + equal.items.len) {
             return pivot;
         } else {
             return quickSelect(self, larger.items, k - smaller.items.len - equal.items.len);
@@ -386,6 +399,11 @@ pub const TrackedAllocator = struct {
     }
 
     pub fn logAllStats(self: *TrackedAllocator) !void {
+        
+        log.info("The current usage of bytes are: {d}.\n", .{self.getCurrentUsage()});
+        log.info("The total bytes allocated are: {d}.\n", .{self.getTotalBytes()});
+        log.info("The peak usage is {d} bytes.\n", .{self.getPeakUsage()});
+
         getCurrentUsage(self);
         getTotalBytes(self);
         getPeakUsage(self);
