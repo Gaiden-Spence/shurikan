@@ -169,35 +169,32 @@ pub const TrackedAllocator = struct {
         return self.peak_usage;
     }
 
-    pub fn getBytesFreed(self: *TrackedAllocator) void {
-        log.info("The total bytes that have been freed are: {d}.\n", .{self.bytes_freed});
+    pub fn getBytesFreed(self: *TrackedAllocator) usize {
+        return self.bytes_freed;
     }
 
-    pub fn getTotalAllocAndFrees(self: *TrackedAllocator) void {
-        log.info("The total operations are: {d} allocs and {d} frees.\n", .{ self.total_allocation, self.total_deallocations });
+    pub fn getTotalAllocAndFrees(self: *TrackedAllocator) struct { usize, usize } {
+        return .{ self.total_allocations, self.total_deallocations };
     }
 
     pub fn getActiveAlloc(self: *TrackedAllocator) void {
         log.info("The active allocations are: {d}.\n", .{self.active_allocations});
     }
 
-    pub fn getAvgAlloc(self: *TrackedAllocator) void {
-        const avg_allocation = @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
-        log.info("The average alloaction is {d:.2}.\n", .{avg_allocation});
+    pub fn getAvgAlloc(self: *TrackedAllocator) !f64 {
+        return @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
     }
 
-    pub fn getFragRatio(self: *TrackedAllocator) void {
-        const frag_ratio = @as(f64, @floatFromInt(self.current_bytes)) / @as(f64, @floatFromInt(self.total_bytes));
-        log.info("The fragmentation ratio is {d:.2}\n", .{frag_ratio});
+    pub fn getFragRatio(self: *TrackedAllocator) !f64 {
+        return @as(f64, @floatFromInt(self.current_bytes)) / @as(f64, @floatFromInt(self.total_bytes));
     }
 
-    pub fn getLifeTimeStats(self: TrackedAllocator) void {
+    pub fn getAvgLifeTime(self: TrackedAllocator) !f64 {
         if (self.lifetime_count > 0) {
             const avg_lifetime = @as(f64, @floatFromInt(self.total_lifetime)) / @as(f64, @floatFromInt(self.lifetime_count));
-            log.info("\nLifetime Statistics:\n", .{});
-            log.info("Average lifetime: {d:.2} seconds\n", .{avg_lifetime});
-            log.info("Shortest lifetime: {d} seconds\n", .{self.min_lifetime});
-            log.info("Longest lifetime: {d} seconds\n", .{self.max_lifetime});
+            return avg_lifetime;
+        } else {
+            return 0;
         }
     }
 
@@ -399,22 +396,20 @@ pub const TrackedAllocator = struct {
     }
 
     pub fn logAllStats(self: *TrackedAllocator) !void {
-        
         log.info("The current usage of bytes are: {d}.\n", .{self.getCurrentUsage()});
         log.info("The total bytes allocated are: {d}.\n", .{self.getTotalBytes()});
         log.info("The peak usage is {d} bytes.\n", .{self.getPeakUsage()});
+        log.info("The total bytes that have been freed are: {d}.\n", .{self.getBytesFreed()});
+        log.info("The total operations are: {d} allocs and {d} frees.\n", .{self.getTotalAllocAndFrees()});
+        log.info("The average alloaction is {d:.2}.\n", .{self.getAvgAlloc()});
+        log.info("The fragmentation ratio is {d:.2}\n", .{self.getFragRatio()});
 
-        getCurrentUsage(self);
-        getTotalBytes(self);
-        getPeakUsage(self);
-        getBytesFreed(self);
-        getTotalAllocAndFrees(self);
-        getActiveAlloc(self);
-        getAvgAlloc(self);
-        getFragRatio(self);
+        log.info("\nLifetime Statistics:\n", .{});
+        log.info("Average lifetime: {d:.2} seconds\n", .{self.getAvgLifeTime()});
+        log.info("Shortest lifetime: {d} seconds\n", .{self.min_lifetime});
+        log.info("Longest lifetime: {d} seconds\n", .{self.max_lifetime});
+
         getTopAlloc(self);
-
-        getLifeTimeStats(self);
 
         makeAllocHistogram(self);
 
