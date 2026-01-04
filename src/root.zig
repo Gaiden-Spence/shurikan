@@ -182,20 +182,30 @@ pub const TrackedAllocator = struct {
     }
 
     pub fn getAvgAlloc(self: *TrackedAllocator) !f64 {
-        return @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
+        const avg_alloc = @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
+        return avg_alloc;
     }
 
     pub fn getFragRatio(self: *TrackedAllocator) !f64 {
-        return @as(f64, @floatFromInt(self.current_bytes)) / @as(f64, @floatFromInt(self.total_bytes));
+        const frag_ratio = @as(f64, @floatFromInt(self.current_bytes)) / @as(f64, @floatFromInt(self.total_bytes));
+        return frag_ratio;
     }
 
-    pub fn getAvgLifeTime(self: TrackedAllocator) !f64 {
+    pub fn getAvgLifeTime(self: *TrackedAllocator) !f64 {
         if (self.lifetime_count > 0) {
             const avg_lifetime = @as(f64, @floatFromInt(self.total_lifetime)) / @as(f64, @floatFromInt(self.lifetime_count));
             return avg_lifetime;
         } else {
             return 0;
         }
+    }
+
+    pub fn getAllocBucket(self: *TrackedAllocator, index_bucket: usize) usize {
+        return self.alloc_array_bucket[index_bucket];
+    }
+
+    pub fn getBytesBucket(self: *TrackedAllocator, bytes_bucket: usize) usize {
+        return self.bytes_array_bucket[bytes_bucket];
     }
 
     pub fn makeAllocHistogram(self: *TrackedAllocator) void {
@@ -234,36 +244,28 @@ pub const TrackedAllocator = struct {
         }
     }
 
-    pub fn getMemoryLogs(self: *TrackedAllocator) void {
-        var mem_log_iterator = self.memory_logs.iterator();
-
-        while (mem_log_iterator.next()) |entry| {
-            const key = entry.key_ptr.*;
-            const val_struct = entry.value_ptr.*;
-
-            log.info("Memory Address: 0x{x}, Value: {any}\n", .{ key, val_struct });
-        }
+    pub fn getMemoryLogs(self: *TrackedAllocator) std.AutoHashMap(usize, memory_log_info) {
+        return self.memory_logs;
     }
 
     pub fn getChurnRate(self: *TrackedAllocator) void {
         const time_diff: i64 = self.last_allocation_timestamp - self.first_allocation_timestamp;
         const churn_rate = @as(f64, @floatFromInt(time_diff)) / @as(f64, @floatFromInt(self.total_allocations));
-
-        log.info("The churn rate your memory is {d} sec.\n", .{churn_rate});
+        return churn_rate;
     }
 
-    pub fn getAvgDealloc(self: *TrackedAllocator) void {
+    pub fn getAvgDealloc(self: *TrackedAllocator) !f64 {
         const avg_dealloc = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_deallocations)) * 100;
-        log.info("The avg dealloaction is {d:.2} bytes.\n", .{avg_dealloc});
+        return avg_dealloc;
     }
 
-    pub fn getEfficiency(self: *TrackedAllocator) void {
+    pub fn getEfficiency(self: *TrackedAllocator) !f64 {
         const eff_ratio = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_bytes));
-        log.info("The efficiency ratio is {d:.4}.\n", .{eff_ratio});
+        return eff_ratio;
     }
 
-    pub fn getTopAlloc(self: *TrackedAllocator) void {
-        log.info("The largest allocation contains these attributes {any}\n", .{self.largest_allocation});
+    pub fn getTopAlloc(self: *TrackedAllocator) usize {
+        return self.largest_allocation;
     }
 
     pub fn percentileMemory(self: *TrackedAllocator, pct: f64) !f64 {
@@ -396,6 +398,8 @@ pub const TrackedAllocator = struct {
     }
 
     pub fn logAllStats(self: *TrackedAllocator) !void {
+
+        //Baseline Analytics
         log.info("The current usage of bytes are: {d}.\n", .{self.getCurrentUsage()});
         log.info("The total bytes allocated are: {d}.\n", .{self.getTotalBytes()});
         log.info("The peak usage is {d} bytes.\n", .{self.getPeakUsage()});
@@ -403,16 +407,32 @@ pub const TrackedAllocator = struct {
         log.info("The total operations are: {d} allocs and {d} frees.\n", .{self.getTotalAllocAndFrees()});
         log.info("The average alloaction is {d:.2}.\n", .{self.getAvgAlloc()});
         log.info("The fragmentation ratio is {d:.2}\n", .{self.getFragRatio()});
+        log.info("The churn rate for your memory is {d} sec.\n", .{self.getChurnRate()});
+        log.info("The largest allocation contains these attributes {any}\n", .{self.getTopAlloc()});
+        log.info("The avg dealloaction is {d:.2} bytes.\n", .{self.getAvgDealloc()});
+        log.info("The efficiency ratio is {d:.4}.\n", .{self.getEfficiency()});
 
+        //Allocation Statistics
         log.info("\nLifetime Statistics:\n", .{});
         log.info("Average lifetime: {d:.2} seconds\n", .{self.getAvgLifeTime()});
         log.info("Shortest lifetime: {d} seconds\n", .{self.min_lifetime});
         log.info("Longest lifetime: {d} seconds\n", .{self.max_lifetime});
 
-        getTopAlloc(self);
-
+        //Allocation Histogram
+        log.info("\nAlloc Histogram.\n", .{});
         makeAllocHistogram(self);
 
-        getChurnRate(self);
+        log.info("\nBytes Histogram.\n", .{});
+        makeByteHistogram(self);
+
+        //Memory Logs
+        var mem_log_iterator = self.memory_logs.iterator();
+
+        while (mem_log_iterator.next()) |entry| {
+            const key = entry.key_ptr.*;
+            const val_struct = entry.value_ptr.*;
+
+            log.info("Memory Address: 0x{x}, Value: {any}\n", .{ key, val_struct });
+        }
     }
 };
