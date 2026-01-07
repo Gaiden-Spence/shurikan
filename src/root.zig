@@ -177,8 +177,8 @@ pub const TrackedAllocator = struct {
         return .{ self.total_allocations, self.total_deallocations };
     }
 
-    pub fn getActiveAlloc(self: *TrackedAllocator) void {
-        log.info("The active allocations are: {d}.\n", .{self.active_allocations});
+    pub fn getActiveAlloc(self: *TrackedAllocator) usize {
+        return self.active_allocations;
     }
 
     pub fn getAvgAlloc(self: *TrackedAllocator) !f64 {
@@ -411,6 +411,7 @@ pub const TrackedAllocator = struct {
         log.info("The largest allocation contains these attributes {any}\n", .{self.getTopAlloc()});
         log.info("The avg dealloaction is {d:.2} bytes.\n", .{self.getAvgDealloc()});
         log.info("The efficiency ratio is {d:.4}.\n", .{self.getEfficiency()});
+        log.info("The active allocations are: {d}.\n", .{self.active_allocations});
 
         //Allocation Statistics
         log.info("\nLifetime Statistics:\n", .{});
