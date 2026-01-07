@@ -2,7 +2,7 @@ const std = @import("std");
 const testing = std.testing;
 const TrackedAllocator = @import("root.zig").TrackedAllocator;
 
-test "TrackedAllocator: test getCurrentUsage" {
+test "test getCurrentUsage" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
@@ -14,7 +14,15 @@ test "TrackedAllocator: test getCurrentUsage" {
     const bytes = try allocator.alloc(u8, 100);
     defer allocator.free(bytes);
 
-    try testing.expectEqual(@as(usize, 100), tracked.current_bytes);
+    const bytes_1000 = try allocator.alloc(u8, 1000);
+    defer allocator.free(bytes_1000);
+
+    const bytes_10000 = try allocator.alloc(u8, 10000);
+    defer allocator.free(bytes_10000);
+
+    const present_bytes = tracked.getCurrentUsage();
+
+    try testing.expectEqual(@as(usize, 11100), present_bytes);
 }
 
 test "test getBytesFreed" {
