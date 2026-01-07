@@ -96,19 +96,19 @@ pub const TrackedAllocator = struct {
         const ptr = self.parent.rawAlloc(len, ptr_align, ret_addr);
         if (ptr) |p| {
             const addr = @intFromPtr(p);
-            self.memory_logs.put(addr, .{ .timestamp = std.time.milliTimeStamp(), .size = len, .location = ret_addr }) catch {};
+            self.memory_logs.put(addr, .{ .timestamp = std.time.milliTimestamp(), .size = len, .location = ret_addr }) catch {};
         }
 
         //Track timestamps
         if (self.total_allocations == 1) {
-            self.first_allocation_timestamp = std.time.milliTimeStamp();
+            self.first_allocation_timestamp = std.time.milliTimestamp();
         }
 
-        self.last_allocation_timestamp = std.milliTimeStamp();
+        self.last_allocation_timestamp = std.time.milliTimestamp();
 
         //Track largest allocation
         if (self.largest_allocation == null or len > self.largest_allocation.?.size) {
-            self.largest_allocation = .{ .timestamp = self.current_timestamp, .size = len, .location = ret_addr };
+            self.largest_allocation = .{ .timestamp = std.time.milliTimestamp(), .size = len, .location = ret_addr };
         }
 
         return ptr;
@@ -121,11 +121,10 @@ pub const TrackedAllocator = struct {
 
     fn free(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, ret_addr: usize) void {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
-        self.parent.rawFree(buf, buf_align, ret_addr);
 
         const addr = @intFromPtr(buf.ptr);
         if (self.memory_logs.get(addr)) |info| {
-            const current_time = std.time.milliTimeStamp();
+            const current_time = std.time.milliTimestamp();
             const lifetime = current_time - info.timestamp;
 
             // Track lifetime statistics
