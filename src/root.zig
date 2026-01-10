@@ -475,10 +475,15 @@ pub const TrackedAllocator = struct {
         log.info("The average alloaction is {d:.2}.\n", .{self.getAvgAlloc()});
         log.info("The fragmentation ratio is {d:.2}\n", .{self.getFragRatio()});
         log.info("The churn rate for your memory is {d} sec.\n", .{self.getChurnRate()});
-        log.info("The largest allocation contains these attributes {any}\n", .{self.getTopAlloc()});
         log.info("The avg dealloaction is {d:.2} bytes.\n", .{self.getAvgDealloc()});
         log.info("The efficiency ratio is {d:.4}.\n", .{self.getEfficiency()});
         log.info("The active allocations are: {d}.\n", .{self.active_allocations});
+
+        if (self.getTopAlloc()) |top| {
+            log.info("The largest allocation contains these attributes {any}\n", .{top});
+        } else {
+            log.info("No allocations tracked yet.\n", .{});
+        }
 
         //Allocation Statistics
         log.info("\nLifetime Statistics:\n", .{});
