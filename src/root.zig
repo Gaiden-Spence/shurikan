@@ -133,7 +133,6 @@ pub const TrackedAllocator = struct {
             } else {
                 const shrinkage = old_len - new_len;
                 self.current_bytes -= shrinkage;
-                // Note: don't add to bytes_freed since memory wasn't freed
             }
 
             // Update peak if needed
@@ -244,22 +243,24 @@ pub const TrackedAllocator = struct {
         return self.active_allocations;
     }
 
-    pub fn getAvgAlloc(self: *TrackedAllocator) !f64 {
+    pub fn getAvgAlloc(self: *TrackedAllocator) f64 {
+        if (self.total_allocations == 0) return 0.0;
         const avg_alloc = @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
         return avg_alloc;
     }
 
-    pub fn getFragRatio(self: *TrackedAllocator) !f64 {
+    pub fn getFragRatio(self: *TrackedAllocator) f64 {
+        if (self.total_bytes == 0) return 0.0;
         const frag_ratio = @as(f64, @floatFromInt(self.current_bytes)) / @as(f64, @floatFromInt(self.total_bytes));
         return frag_ratio;
     }
 
-    pub fn getAvgLifeTime(self: *TrackedAllocator) !f64 {
+    pub fn getAvgLifeTime(self: *TrackedAllocator) f64 {
         if (self.lifetime_count > 0) {
             const avg_lifetime = @as(f64, @floatFromInt(self.total_lifetime)) / @as(f64, @floatFromInt(self.lifetime_count));
             return avg_lifetime;
         } else {
-            return 0;
+            return 0.0;
         }
     }
 
@@ -312,17 +313,20 @@ pub const TrackedAllocator = struct {
     }
 
     pub fn getChurnRate(self: *TrackedAllocator) f64 {
+        if (self.total_allocations == 0) return 0.0;
         const time_diff: i64 = self.last_allocation_timestamp - self.first_allocation_timestamp;
         const churn_rate = @as(f64, @floatFromInt(time_diff)) / @as(f64, @floatFromInt(self.total_allocations));
         return churn_rate;
     }
 
-    pub fn getAvgDealloc(self: *TrackedAllocator) !f64 {
+    pub fn getAvgDealloc(self: *TrackedAllocator) f64 {
+        if (self.total_allocations == 0) return 0.0;
         const avg_dealloc = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_deallocations)) * 100;
         return avg_dealloc;
     }
 
-    pub fn getEfficiency(self: *TrackedAllocator) !f64 {
+    pub fn getEfficiency(self: *TrackedAllocator) f64 {
+        if (self.total_bytes == 0) return 0.0;
         const eff_ratio = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_bytes));
         return eff_ratio;
     }
