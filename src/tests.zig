@@ -35,7 +35,6 @@ test "test getCurrentUsage" {
 
     const present_arena_bytes = tracked_arena.getCurrentUsage();
 
-    //Test Fixed Buffer Allocator
     //Test FixedBufferAllocator
     var buffer: [512]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&buffer);
@@ -59,13 +58,15 @@ test "test getBytesFreed" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var tracked = TrackedAllocator.init(gpa.allocator);
+    var tracked = TrackedAllocator.init(gpa.allocator());
     defer tracked.memory_logs.deinit();
 
     const allocator = tracked.allocator();
 
-    const bytes = try allocator.alloc(u8, 100);
-    defer allocator.free(bytes);
+    const bytes = try allocator.alloc(u8, 10000);
+    allocator.free(bytes);
 
-    try testing.expectEqual(@as(usize, 100), tracked.bytes_freed);
+    const present_freed_bytes = tracked.getBytesFreed();
+
+    try testing.expectEqual(@as(usize, 10000), present_freed_bytes);
 }
