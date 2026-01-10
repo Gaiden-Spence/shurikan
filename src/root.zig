@@ -52,6 +52,12 @@ pub const TrackedAllocator = struct {
 
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
+        const ptr = self.parent.rawAlloc(len, ptr_align, ret_addr);
+
+        if (ptr == null) {
+            self.null_allocations += 1;
+            return null;
+        }
 
         //Get track byteusage
         self.total_bytes += len;
@@ -92,12 +98,9 @@ pub const TrackedAllocator = struct {
             },
         }
 
-        //Track Memory Logs
-        const ptr = self.parent.rawAlloc(len, ptr_align, ret_addr);
-        if (ptr) |p| {
-            const addr = @intFromPtr(p);
-            self.memory_logs.put(addr, .{ .timestamp = std.time.milliTimestamp(), .size = len, .location = ret_addr }) catch {};
-        }
+        //Track Memory Logs{
+        const addr = @intFromPtr(ptr.?);
+        self.memory_logs.put(addr, .{ .timestamp = std.time.milliTimestamp(), .size = len, .location = ret_addr }) catch {};
 
         //Track timestamps
         if (self.total_allocations == 1) {
@@ -116,14 +119,42 @@ pub const TrackedAllocator = struct {
 
     fn resize(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
-        return self.parent.rawResize(buf, buf_align, new_len, ret_addr);
+        const success = self.parent.rawResize(buf, buf_align, new_len, ret_addr);
+
+        if (success) {
+            const old_len = buf.len;
+            const addr = @intFromPtr(buf.ptr);
+
+            // Update byte tracking
+            if (new_len > old_len) {
+                const growth = new_len - old_len;
+                self.total_bytes += growth;
+                self.current_bytes += growth;
+            } else {
+                const shrinkage = old_len - new_len;
+                self.current_bytes -= shrinkage;
+                // Note: don't add to bytes_freed since memory wasn't freed
+            }
+
+            // Update peak if needed
+            if (self.current_bytes > self.peak_usage) {
+                self.peak_usage = self.current_bytes;
+            }
+
+            // Update memory logs with new size
+            if (self.memory_logs.getPtr(addr)) |info| {
+                info.size = new_len;
+            }
+        }
+
+        return success;
     }
 
     fn free(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, ret_addr: usize) void {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
 
         const addr = @intFromPtr(buf.ptr);
-        if (self.memory_logs.get(addr)) |info| {
+        const actual_size = if (self.memory_logs.get(addr)) |info| blk: {
             const current_time = std.time.milliTimestamp();
             const lifetime = current_time - info.timestamp;
 
@@ -140,12 +171,13 @@ pub const TrackedAllocator = struct {
 
             // Remove from tracking
             _ = self.memory_logs.remove(addr);
-        }
+            break :blk info.size;
+        } else buf.len;
 
         self.parent.rawFree(buf, buf_align, ret_addr);
 
-        self.bytes_freed += buf.len;
-        self.current_bytes -= buf.len;
+        self.bytes_freed += actual_size;
+        self.current_bytes -= actual_size;
 
         self.total_deallocations += 1;
         self.active_allocations -= 1;
@@ -153,7 +185,39 @@ pub const TrackedAllocator = struct {
 
     fn remap(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
-        return self.parent.rawRemap(buf, buf_align, new_len, ret_addr);
+        const old_addr = @intFromPtr(buf.ptr);
+        const old_len = buf.len;
+
+        const new_ptr = self.parent.rawRemap(buf, buf_align, new_len, ret_addr);
+
+        if (new_ptr) |p| {
+            const new_addr = @intFromPtr(p);
+
+            // Update byte tracking (similar to resize)
+            if (new_len > old_len) {
+                const growth = new_len - old_len;
+                self.total_bytes += growth;
+                self.current_bytes += growth;
+            } else {
+                const shrinkage = old_len - new_len;
+                self.current_bytes -= shrinkage;
+            }
+
+            if (self.current_bytes > self.peak_usage) {
+                self.peak_usage = self.current_bytes;
+            }
+
+            // Remove old tracking and add new (address may have changed)
+            if (self.memory_logs.fetchRemove(old_addr)) |old_entry| {
+                self.memory_logs.put(new_addr, .{
+                    .timestamp = old_entry.value.timestamp, // Keep original timestamp
+                    .size = new_len,
+                    .location = ret_addr,
+                }) catch {};
+            }
+        }
+
+        return new_ptr;
     }
 
     pub fn getCurrentUsage(self: *TrackedAllocator) usize {
@@ -247,7 +311,7 @@ pub const TrackedAllocator = struct {
         return self.memory_logs;
     }
 
-    pub fn getChurnRate(self: *TrackedAllocator) void {
+    pub fn getChurnRate(self: *TrackedAllocator) f64 {
         const time_diff: i64 = self.last_allocation_timestamp - self.first_allocation_timestamp;
         const churn_rate = @as(f64, @floatFromInt(time_diff)) / @as(f64, @floatFromInt(self.total_allocations));
         return churn_rate;
@@ -263,7 +327,7 @@ pub const TrackedAllocator = struct {
         return eff_ratio;
     }
 
-    pub fn getTopAlloc(self: *TrackedAllocator) usize {
+    pub fn getTopAlloc(self: *TrackedAllocator) ?memory_log_info {
         return self.largest_allocation;
     }
 
