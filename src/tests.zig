@@ -170,3 +170,13 @@ test "test getTotalBytes total greater than current" {
     try testing.expectEqual(@as(usize, 0), present_bytes);
     try testing.expectEqual(@as(usize, 1100), total_bytes);
 }
+
+test "test getTotalBytes initial case 0" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    try testing.expectEqual(@as(usize, 0), tracked.getTotalBytes());
+}
