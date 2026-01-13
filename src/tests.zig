@@ -149,3 +149,24 @@ test "getBytesFreed - free in reverse order" {
 
     try testing.expectEqual(@as(usize, 600), tracked.getBytesFreed());
 }
+
+test "test getTotalBytes total greater than current" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+    const bytes = try allocator.alloc(u8, 100);
+    allocator.free(bytes);
+
+    const bytes1 = try allocator.alloc(u8, 1000);
+    allocator.free(bytes1);
+
+    const present_bytes = tracked.getCurrentUsage();
+    const total_bytes = tracked.getTotalBytes();
+
+    try testing.expectEqual(@as(usize, 0), present_bytes);
+    try testing.expectEqual(@as(usize, 1100), total_bytes);
+}
