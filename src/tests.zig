@@ -130,7 +130,7 @@ test "test getBytesFreed multiple allocators" {
     try testing.expectEqual(@as(usize, 0), freed_fba_bytes);
 }
 
-test "getBytesFreed - many small vs few large allocations" {
+test "getBytesFreed - free in reverse order" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
@@ -139,14 +139,13 @@ test "getBytesFreed - many small vs few large allocations" {
 
     const allocator = tracked.allocator();
 
-    var small_allocs: [100][*]u8 = undefined;
-    for (&small_allocs) |*ptr| {
-        ptr.* = (try allocator.alloc(u8, 10)).ptr;
-    }
+    const a = try allocator.alloc(u8, 100);
+    const b = try allocator.alloc(u8, 200);
+    const c = try allocator.alloc(u8, 300);
 
-    for (small_allocs) |ptr| {
-        allocator.free(ptr[0..10]);
-    }
+    allocator.free(c);
+    allocator.free(b);
+    allocator.free(a);
 
-    try testing.expectEqual(@as(usize, 1000), tracked.getBytesFreed());
+    try testing.expectEqual(@as(usize, 600), tracked.getBytesFreed());
 }
