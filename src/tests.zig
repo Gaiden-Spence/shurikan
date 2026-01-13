@@ -129,3 +129,24 @@ test "test getBytesFreed multiple allocators" {
     try testing.expectEqual(@as(usize, 11000), present_freed_bytes_arena);
     try testing.expectEqual(@as(usize, 0), freed_fba_bytes);
 }
+
+test "getBytesFreed - many small vs few large allocations" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    var small_allocs: [100][*]u8 = undefined;
+    for (&small_allocs) |*ptr| {
+        ptr.* = (try allocator.alloc(u8, 10)).ptr;
+    }
+
+    for (small_allocs) |ptr| {
+        allocator.free(ptr[0..10]);
+    }
+
+    try testing.expectEqual(@as(usize, 1000), tracked.getBytesFreed());
+}
