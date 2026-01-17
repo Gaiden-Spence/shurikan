@@ -190,3 +190,19 @@ test "getPeakUsage - no peak returns 0" {
     try testing.expectEqual(@as(usize, 0), tracked.getPeakUsage());
 }
 
+test "getPeakUsage - multiple peaks" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    for (0..10000) |i| {
+        const bytes = try allocator.alloc(u8, i);
+        allocator.free(bytes);
+    }
+
+    try testing.expectEqual(@as(usize, 9999), tracked.getPeakUsage());
+}
