@@ -206,3 +206,16 @@ test "getPeakUsage - multiple peaks" {
 
     try testing.expectEqual(@as(usize, 9999), tracked.getPeakUsage());
 }
+
+test "getTotalAllocAndFrees are 0" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const frees_and_allocs = tracked.getTotalAllocAndFrees();
+
+    try testing.expectEqual(@as(usize, 0), frees_and_allocs[0]);
+    try testing.expectEqual(@as(usize, 0), frees_and_allocs[1]);
+}
