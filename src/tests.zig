@@ -344,3 +344,13 @@ test "getTotalAllocAndFrees frees occur end of scope" {
     try testing.expectEqual(@as(usize, 2), result[0]);
     try testing.expectEqual(@as(usize, 1), result[1]);
 }
+
+test "getActiveAlloc initially 0" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    try testing.expectEqual(@as(usize, 0), tracked.getActiveAlloc());
+}
