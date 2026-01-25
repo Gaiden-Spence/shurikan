@@ -373,3 +373,23 @@ test "getActiveAlloc - multiple allocations no frees" {
 
     try testing.expectEqual(@as(usize, 3), tracked.getActiveAlloc());
 }
+
+test "getActiveAlloc - some allocations freed" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const a = try allocator.alloc(u8, 100);
+    const b = try allocator.alloc(u8, 200);
+    const c = try allocator.alloc(u8, 300);
+    
+    allocator.free(a);
+    allocator.free(b);
+    defer allocator.free(c);
+
+    try testing.expectEqual(@as(usize, 1), tracked.getActiveAlloc());
+}
