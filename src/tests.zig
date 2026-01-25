@@ -16,6 +16,26 @@ test "test FixedBufferAllocator out of memeory" {
     try testing.expectError(error.OutOfMemory, result);
 }
 
+test "resize tracking updates correctly" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+    
+    var bytes = try allocator.alloc(u8, 100);
+    const initial_total = tracked.getTotalBytes();
+    
+    if (allocator.resize(bytes, 200)) {
+        bytes.len = 200;
+        try testing.expectEqual(initial_total + 100, tracked.getTotalBytes());
+    }
+    
+    allocator.free(bytes);
+}
+
 test "test getCurrentUsage multiple allocators" {
     //Test GPA
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -219,3 +239,4 @@ test "getTotalAllocAndFrees are 0" {
     try testing.expectEqual(@as(usize, 0), frees_and_allocs[0]);
     try testing.expectEqual(@as(usize, 0), frees_and_allocs[1]);
 }
+
