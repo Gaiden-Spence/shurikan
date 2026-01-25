@@ -287,7 +287,7 @@ test "getTotalAllocAndFrees are 0" {
     try testing.expectEqual(@as(usize, 0), frees_and_allocs[1]);
 }
 
-test "getTotalAllocAndFrees single allocation and free"{
+test "getTotalAllocAndFrees single allocation and free" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
@@ -300,8 +300,27 @@ test "getTotalAllocAndFrees single allocation and free"{
     allocator.free(bytes_10000);
 
     const frees_and_allocs_single = tracked.getTotalAllocAndFrees();
-    
+
     try testing.expectEqual(@as(usize, 1), frees_and_allocs_single[0]);
     try testing.expectEqual(@as(usize, 1), frees_and_allocs_single[1]);
 }
 
+test "getTotalAllocAndFrees multiple alloc and frees" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    for (0..10000) |i| {
+        const bytes_var = try allocator.alloc(u8, i);
+        allocator.free(bytes_var);
+    }
+
+    const frees_and_allocs = tracked.getTotalAllocAndFrees();
+
+    try testing.expectEqual(@as(usize, 9999), frees_and_allocs[0]);
+    try testing.expectEqual(@as(usize, 9999), frees_and_allocs[1]);
+}
