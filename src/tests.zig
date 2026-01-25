@@ -36,6 +36,34 @@ test "resize tracking updates correctly" {
     allocator.free(bytes);
 }
 
+test "realloc updates memory logs" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    var bytes = try allocator.alloc(u8, 100);
+    const old_addr = @intFromPtr(bytes.ptr);
+
+    bytes = try allocator.realloc(bytes, 200);
+    const new_addr = @intFromPtr(bytes.ptr);
+
+    if (tracked.memory_logs.get(new_addr)) |info| {
+        try testing.expectEqual(@as(usize, 200), info.size);
+    } else {
+        try testing.expect(false);
+    }
+
+    if (old_addr != new_addr) {
+        try testing.expect(tracked.memory_logs.get(old_addr) == null);
+    }
+
+    allocator.free(bytes);
+}
+
 test "realloc tracking shrinks correctly" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -48,10 +76,8 @@ test "realloc tracking shrinks correctly" {
     var bytes = try allocator.alloc(u8, 1000);
     const initial_current = tracked.getCurrentUsage();
 
-    // Shrink the allocation
     bytes = try allocator.realloc(bytes, 100);
 
-    // Current usage should decrease
     try testing.expectEqual(initial_current - 900, tracked.getCurrentUsage());
 
     allocator.free(bytes);
