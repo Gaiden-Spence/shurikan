@@ -324,3 +324,23 @@ test "getTotalAllocAndFrees multiple alloc and frees" {
     try testing.expectEqual(@as(usize, 9999), frees_and_allocs[0]);
     try testing.expectEqual(@as(usize, 9999), frees_and_allocs[1]);
 }
+
+test "getTotalAllocAndFrees frees occur end of scope" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const a = try allocator.alloc(u8, 100);
+    const b = try allocator.alloc(u8, 200);
+    defer allocator.free(b);
+
+    allocator.free(a);
+
+    const result = tracked.getTotalAllocAndFrees();
+    try testing.expectEqual(@as(usize, 2), result[0]);
+    try testing.expectEqual(@as(usize, 1), result[1]);
+}
