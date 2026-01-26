@@ -498,3 +498,26 @@ test "getFragRatio defered single allocation" {
     try testing.expectEqual(@as(f64, 1.0), tracked.getFragRatio());
 }
 
+test "getFragRatio defered multiple allocations" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const bytes_100 = try allocator.alloc(u8, 100);
+    const bytes_1000 = try allocator.alloc(u8, 1000);
+    const bytes_5000 = try allocator.alloc(u8, 5000);
+    const bytes_10000 = try allocator.alloc(u8, 10000);
+
+    allocator.free(bytes_100);
+    allocator.free(bytes_5000);
+    defer allocator.free(bytes_10000);
+    defer allocator.free(bytes_1000);
+
+    const expected_ratio = @as(f64, 11000.0 / 16100.0);
+
+    try testing.expectApproxEqRel(expected_ratio, tracked.getFragRatio(), 0.0001);
+}
