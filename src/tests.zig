@@ -483,3 +483,18 @@ test "getFragRatio initially 0" {
     try testing.expectEqual(@as(f64, 0), tracked.getFragRatio());
 }
 
+test "getFragRatio defered single allocation" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const bytes_100 = try allocator.alloc(u8, 100);
+    defer allocator.free(bytes_100);
+
+    try testing.expectEqual(@as(f64, 1.0), tracked.getFragRatio());
+}
+
