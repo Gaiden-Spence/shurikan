@@ -4,11 +4,10 @@ const histogram_tag_bucket = enum { Tiny, Small, Medium, Large, Giant };
 const memory_log_info = struct { timestamp: i64, size: usize, location: usize };
 const log = std.log.scoped(.memory_tracker);
 
-// Simple memory tracking allocator wrapper
 pub const TrackedAllocator = struct {
     parent: std.mem.Allocator,
 
-    total_bytes: usize = 0,
+    total_bytes: usize = 0, //total bytes used
     current_bytes: usize = 0,
     bytes_freed: usize = 0,
     peak_usage: usize = 0,
