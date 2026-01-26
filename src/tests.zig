@@ -334,11 +334,11 @@ test "getTotalAllocAndFrees frees occur end of scope" {
 
     const allocator = tracked.allocator();
 
-    const a = try allocator.alloc(u8, 100);
-    const b = try allocator.alloc(u8, 200);
-    defer allocator.free(b);
+    const bytes_100 = try allocator.alloc(u8, 100);
+    const bytes_200 = try allocator.alloc(u8, 200);
+    defer allocator.free(bytes_200);
 
-    allocator.free(a);
+    allocator.free(bytes_100);
 
     const result = tracked.getTotalAllocAndFrees();
     try testing.expectEqual(@as(usize, 2), result[0]);
@@ -364,12 +364,12 @@ test "getActiveAlloc - multiple allocations no frees" {
 
     const allocator = tracked.allocator();
 
-    const a = try allocator.alloc(u8, 100);
-    const b = try allocator.alloc(u8, 200);
-    const c = try allocator.alloc(u8, 300);
-    defer allocator.free(a);
-    defer allocator.free(b);
-    defer allocator.free(c);
+    const bytes_100 = try allocator.alloc(u8, 100);
+    const bytes_200 = try allocator.alloc(u8, 200);
+    const bytes_300 = try allocator.alloc(u8, 300);
+    defer allocator.free(bytes_100);
+    defer allocator.free(bytes_200);
+    defer allocator.free(bytes_300);
 
     try testing.expectEqual(@as(usize, 3), tracked.getActiveAlloc());
 }
@@ -383,13 +383,13 @@ test "getActiveAlloc - some allocations freed" {
 
     const allocator = tracked.allocator();
 
-    const a = try allocator.alloc(u8, 100);
-    const b = try allocator.alloc(u8, 200);
-    const c = try allocator.alloc(u8, 300);
-    
-    allocator.free(a);
-    allocator.free(b);
-    defer allocator.free(c);
+    const bytes_100 = try allocator.alloc(u8, 100);
+    const bytes_200 = try allocator.alloc(u8, 200);
+    const bytes_300 = try allocator.alloc(u8, 300);
+
+    allocator.free(bytes_100);
+    allocator.free(bytes_200);
+    defer allocator.free(bytes_300);
 
     try testing.expectEqual(@as(usize, 1), tracked.getActiveAlloc());
 }
@@ -405,9 +405,72 @@ test "getActiveAlloc - all allocations freed" {
 
     const a = try allocator.alloc(u8, 100);
     const b = try allocator.alloc(u8, 200);
-    
+
     allocator.free(a);
     allocator.free(b);
 
     try testing.expectEqual(@as(usize, 0), tracked.getActiveAlloc());
 }
+
+test "getAvgAlloc initially 0" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    try testing.expectEqual(@as(f64, 0.0), tracked.getAvgAlloc());
+}
+
+test "getAvgAlloc single allocation" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const bytes_100 = try allocator.alloc(u8, 100);
+    allocator.free(bytes_100);
+
+    const avg_alloc = tracked.getAvgAlloc();
+
+    try testing.expectEqual(@as(f64, 100.0), avg_alloc);
+}
+
+test "getAvgAlloc - random allocations" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    var prng = std.Random.DefaultPrng.init(12345);
+    const random = prng.random();
+
+    var total_bytes: usize = 0;
+    var allocations: std.ArrayList([]u8) = .empty;
+    defer {
+        for (allocations.items) |bytes| {
+            allocator.free(bytes);
+        }
+        allocations.deinit(gpa.allocator());
+    }
+
+    for (0..10000) |_| {
+        const size = random.intRangeAtMost(usize, 1, 10000);
+        const bytes = try allocator.alloc(u8, size);
+        try allocations.append(gpa.allocator(), bytes);
+        total_bytes += size;
+    }
+
+    const expected_avg = @as(f64, @floatFromInt(total_bytes)) / 10000.0;
+    const actual_avg = tracked.getAvgAlloc();
+
+    try testing.expectApproxEqRel(expected_avg, actual_avg, 0.0001);
+}
+
+test ""
