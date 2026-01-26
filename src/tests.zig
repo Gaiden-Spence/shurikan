@@ -540,3 +540,27 @@ test "getAvgLifeTime - single allocation" {
     // Should be at least 100ms (accounting for some overhead)
     try testing.expect(avg_lifetime >= 100.0);
 }
+
+test "getAvgLifeTime - multiple allocations" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const a = try allocator.alloc(u8, 100);
+    std.Thread.sleep(50 * std.time.ns_per_ms);
+    allocator.free(a);
+
+    const b = try allocator.alloc(u8, 200);
+    std.Thread.sleep(150 * std.time.ns_per_ms);
+    allocator.free(b);
+
+    const avg_lifetime = tracked.getAvgLifeTime();
+    
+    // Average should be around (50 + 150) / 2 = 100ms
+    try testing.expect(avg_lifetime >= 100.0);
+    try testing.expect(avg_lifetime <= 110.0);
+}
