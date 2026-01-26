@@ -575,8 +575,20 @@ test "getAvgLifeTime - multiple allocations" {
 
     const avg_lifetime = tracked.getAvgLifeTime();
 
-    // Average should be around (50 + 150) / 2 = 100ms
     try testing.expect(avg_lifetime >= 100.0);
     try testing.expect(avg_lifetime <= 110.0);
+}
+
+test "getAllocBucket initial values 0" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    try testing.expectEqual(@as(usize, 0), tracked.getAllocBucket(0));
+    try testing.expectEqual(@as(usize, 0), tracked.getAllocBucket(1));
+    try testing.expectEqual(@as(usize, 0), tracked.getAllocBucket(2));
+    try testing.expectEqual(@as(usize, 0), tracked.getAllocBucket(3));
 }
 
