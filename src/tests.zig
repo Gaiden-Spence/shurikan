@@ -325,7 +325,7 @@ test "getTotalAllocAndFrees multiple alloc and frees" {
     try testing.expectEqual(@as(usize, 9999), frees_and_allocs[1]);
 }
 
-test "getTotalAllocAndFrees frees occur end of scope" {
+test "getTotalAllocAndFrees frees defered" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
@@ -439,7 +439,7 @@ test "getAvgAlloc single allocation" {
     try testing.expectEqual(@as(f64, 100.0), avg_alloc);
 }
 
-test "getAvgAlloc - random allocations" {
+test "getAvgAlloc - various allocations" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
@@ -473,4 +473,13 @@ test "getAvgAlloc - random allocations" {
     try testing.expectApproxEqRel(expected_avg, actual_avg, 0.0001);
 }
 
-test ""
+test "getFragRatio initially 0" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    try testing.expectEqual(@as(f64, 0), tracked.getFragRatio());
+}
+
