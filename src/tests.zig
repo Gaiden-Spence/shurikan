@@ -522,6 +522,21 @@ test "getFragRatio defered multiple allocations" {
     try testing.expectApproxEqRel(expected_ratio, tracked.getFragRatio(), 0.0001);
 }
 
+test "getAvgLifeTime - no deallocations" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const bytes = try allocator.alloc(u8, 100);
+    defer allocator.free(bytes);
+
+    try testing.expectEqual(@as(f64, 0.0), tracked.getAvgLifeTime());
+}
+
 test "getAvgLifeTime - single allocation" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -559,8 +574,9 @@ test "getAvgLifeTime - multiple allocations" {
     allocator.free(b);
 
     const avg_lifetime = tracked.getAvgLifeTime();
-    
+
     // Average should be around (50 + 150) / 2 = 100ms
     try testing.expect(avg_lifetime >= 100.0);
     try testing.expect(avg_lifetime <= 110.0);
 }
+
