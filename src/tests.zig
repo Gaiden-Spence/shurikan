@@ -521,3 +521,22 @@ test "getFragRatio defered multiple allocations" {
 
     try testing.expectApproxEqRel(expected_ratio, tracked.getFragRatio(), 0.0001);
 }
+
+test "getAvgLifeTime - single allocation" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const bytes = try allocator.alloc(u8, 100);
+    std.Thread.sleep(100 * std.time.ns_per_ms);
+    allocator.free(bytes);
+
+    const avg_lifetime = tracked.getAvgLifeTime();
+
+    // Should be at least 100ms (accounting for some overhead)
+    try testing.expect(avg_lifetime >= 100.0);
+}
