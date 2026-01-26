@@ -622,7 +622,7 @@ test "getAllocBucket single allocation" {
     try testing.expectEqual(@as(usize, 1), tracked.getAllocBucket(4));
 }
 
-test "getAllocBucket multiple allocations"{
+test "getAllocBucket multiple allocations" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
@@ -631,7 +631,7 @@ test "getAllocBucket multiple allocations"{
 
     const allocator = tracked.allocator();
 
-    for (0..1000) |_|{
+    for (0..1000) |_| {
         const bytes_tiny = try allocator.alloc(u8, 2);
         const bytes_small = try allocator.alloc(u8, 100);
         const bytes_medium = try allocator.alloc(u8, 1000);
@@ -644,7 +644,7 @@ test "getAllocBucket multiple allocations"{
         allocator.free(bytes_large);
         allocator.free(bytes_giant);
     }
-    
+
     try testing.expectEqual(@as(usize, 1000), tracked.getAllocBucket(0));
     try testing.expectEqual(@as(usize, 1000), tracked.getAllocBucket(1));
     try testing.expectEqual(@as(usize, 1000), tracked.getAllocBucket(2));
@@ -652,3 +652,74 @@ test "getAllocBucket multiple allocations"{
     try testing.expectEqual(@as(usize, 1000), tracked.getAllocBucket(4));
 }
 
+test "getBytesBucket initial values 0" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    try testing.expectEqual(@as(usize, 0), tracked.getBytesBucket(0));
+    try testing.expectEqual(@as(usize, 0), tracked.getBytesBucket(1));
+    try testing.expectEqual(@as(usize, 0), tracked.getBytesBucket(2));
+    try testing.expectEqual(@as(usize, 0), tracked.getBytesBucket(3));
+    try testing.expectEqual(@as(usize, 0), tracked.getBytesBucket(4));
+}
+
+test "getBytesBucket single allocation" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const bytes_tiny = try allocator.alloc(u8, 2);
+    const bytes_small = try allocator.alloc(u8, 100);
+    const bytes_medium = try allocator.alloc(u8, 1000);
+    const bytes_large = try allocator.alloc(u8, 5000);
+    const bytes_giant = try allocator.alloc(u8, 70000);
+
+    allocator.free(bytes_tiny);
+    allocator.free(bytes_small);
+    allocator.free(bytes_medium);
+    allocator.free(bytes_large);
+    allocator.free(bytes_giant);
+
+    try testing.expectEqual(@as(usize, 2), tracked.getBytesBucket(0));
+    try testing.expectEqual(@as(usize, 100), tracked.getBytesBucket(1));
+    try testing.expectEqual(@as(usize, 1000), tracked.getBytesBucket(2));
+    try testing.expectEqual(@as(usize, 5000), tracked.getBytesBucket(3));
+    try testing.expectEqual(@as(usize, 70000), tracked.getBytesBucket(4));
+}
+
+test "getBytesBucket multiple allocations" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    for (0..1000) |_| {
+        const bytes_tiny = try allocator.alloc(u8, 2);
+        const bytes_small = try allocator.alloc(u8, 100);
+        const bytes_medium = try allocator.alloc(u8, 1000);
+        const bytes_large = try allocator.alloc(u8, 5000);
+        const bytes_giant = try allocator.alloc(u8, 70000);
+
+        allocator.free(bytes_tiny);
+        allocator.free(bytes_small);
+        allocator.free(bytes_medium);
+        allocator.free(bytes_large);
+        allocator.free(bytes_giant);
+    }
+
+    try testing.expectEqual(@as(usize, 2000), tracked.getBytesBucket(0));
+    try testing.expectEqual(@as(usize, 100000), tracked.getBytesBucket(1));
+    try testing.expectEqual(@as(usize, 1000000), tracked.getBytesBucket(2));
+    try testing.expectEqual(@as(usize, 5000000), tracked.getBytesBucket(3));
+    try testing.expectEqual(@as(usize, 70000000), tracked.getBytesBucket(4));
+}
