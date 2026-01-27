@@ -676,7 +676,7 @@ test "getBytesBucket initial values 0" {
     try testing.expectEqual(@as(usize, 0), tracked.getBytesBucket(4));
 }
 
-test "getBytesBucket single allocation" {
+test "getBytesBucket boundary allocations" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
@@ -685,23 +685,33 @@ test "getBytesBucket single allocation" {
 
     const allocator = tracked.allocator();
 
-    const bytes_tiny = try allocator.alloc(u8, 2);
-    const bytes_small = try allocator.alloc(u8, 100);
-    const bytes_medium = try allocator.alloc(u8, 1000);
-    const bytes_large = try allocator.alloc(u8, 5000);
-    const bytes_giant = try allocator.alloc(u8, 70000);
+    const bytes_tiny_rb = try allocator.alloc(u8, 64);
+    const bytes_small_rb = try allocator.alloc(u8, 256);
+    const bytes_medium_rb = try allocator.alloc(u8, 4096);
+    const bytes_large_rb = try allocator.alloc(u8, 65536);
+    const bytes_giant_rb = try allocator.alloc(u8, 65537);
 
-    allocator.free(bytes_tiny);
-    allocator.free(bytes_small);
-    allocator.free(bytes_medium);
-    allocator.free(bytes_large);
-    allocator.free(bytes_giant);
+    const bytes_tiny_lb = try allocator.alloc(u8, 1);
+    const bytes_small_lb = try allocator.alloc(u8, 65);
+    const bytes_medium_lb = try allocator.alloc(u8, 257);
+    const bytes_large_lb = try allocator.alloc(u8, 4097);
 
-    try testing.expectEqual(@as(usize, 2), tracked.getBytesBucket(0));
-    try testing.expectEqual(@as(usize, 100), tracked.getBytesBucket(1));
-    try testing.expectEqual(@as(usize, 1000), tracked.getBytesBucket(2));
-    try testing.expectEqual(@as(usize, 5000), tracked.getBytesBucket(3));
-    try testing.expectEqual(@as(usize, 70000), tracked.getBytesBucket(4));
+    allocator.free(bytes_tiny_rb);
+    allocator.free(bytes_small_rb);
+    allocator.free(bytes_medium_rb);
+    allocator.free(bytes_large_rb);
+    allocator.free(bytes_giant_rb);
+
+    allocator.free(bytes_tiny_lb);
+    allocator.free(bytes_small_lb);
+    allocator.free(bytes_medium_lb);
+    allocator.free(bytes_large_lb);
+
+    try testing.expectEqual(@as(usize, 65), tracked.getBytesBucket(0));
+    try testing.expectEqual(@as(usize, 321), tracked.getBytesBucket(1));
+    try testing.expectEqual(@as(usize, 4353), tracked.getBytesBucket(2));
+    try testing.expectEqual(@as(usize, 69633), tracked.getBytesBucket(3));
+    try testing.expectEqual(@as(usize, 65537), tracked.getBytesBucket(4));
 }
 
 test "getBytesBucket multiple allocations" {
