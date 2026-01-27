@@ -58,6 +58,10 @@ pub const TrackedAllocator = struct {
             return null;
         }
 
+        if (len == 0) {
+            return ptr;
+        }
+
         //Get track byteusage
         self.total_bytes += len;
         self.current_bytes += len;
@@ -72,7 +76,7 @@ pub const TrackedAllocator = struct {
 
         //Track Histogram allocations and bytes
         switch (len) {
-            0...64 => {
+            1...64 => {
                 self.alloc_array_bucket[0] += 1;
                 self.bytes_array_bucket[0] += len;
             },
