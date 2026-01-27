@@ -2,6 +2,24 @@ const std = @import("std");
 const testing = std.testing;
 const TrackedAllocator = @import("root.zig").TrackedAllocator;
 
+test "zero byte allocation - not tracked" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const zero_bytes = try allocator.alloc(u8, 0);
+    defer allocator.free(zero_bytes);
+
+    // Should not be tracked
+    try testing.expectEqual(@as(usize, 0), tracked.total_allocations);
+    try testing.expectEqual(@as(usize, 0), tracked.total_bytes);
+    try testing.expectEqual(@as(usize, 0), tracked.active_allocations);
+}
+
 test "test FixedBufferAllocator out of memeory" {
     var buffer: [512]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&buffer);
@@ -743,3 +761,4 @@ test "getBytesBucket multiple allocations" {
     try testing.expectEqual(@as(usize, 5000000), tracked.getBytesBucket(3));
     try testing.expectEqual(@as(usize, 70000000), tracked.getBytesBucket(4));
 }
+
