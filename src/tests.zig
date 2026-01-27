@@ -457,6 +457,28 @@ test "getAvgAlloc single allocation" {
     try testing.expectEqual(@as(f64, 100.0), avg_alloc);
 }
 
+test "zero byte allocation - does not affect average" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const a = try allocator.alloc(u8, 100);
+    const b = try allocator.alloc(u8, 200);
+    const zero = try allocator.alloc(u8, 0);
+    
+    defer allocator.free(a);
+    defer allocator.free(b);
+    defer allocator.free(zero);
+
+    // Average should be (100 + 200) / 2 = 150, not affected by 0-byte alloc
+    try testing.expectEqual(@as(f64, 150.0), tracked.getAvgAlloc());
+    try testing.expectEqual(@as(usize, 2), tracked.total_allocations);
+}
+
 test "getAvgAlloc - various allocations" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
