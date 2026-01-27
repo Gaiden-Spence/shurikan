@@ -784,3 +784,21 @@ test "getBytesBucket multiple allocations" {
     try testing.expectEqual(@as(usize, 70000000), tracked.getBytesBucket(4));
 }
 
+test "zero byte allocation - not in histogram" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const zero = try allocator.alloc(u8, 0);
+    defer allocator.free(zero);
+
+    // No buckets should have any allocations
+    for (0..5) |i| {
+        try testing.expectEqual(@as(usize, 0), tracked.getAllocBucket(i));
+        try testing.expectEqual(@as(usize, 0), tracked.getBytesBucket(i));
+    }
+}
