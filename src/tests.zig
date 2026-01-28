@@ -469,7 +469,7 @@ test "zero byte allocation - does not affect average" {
     const a = try allocator.alloc(u8, 100);
     const b = try allocator.alloc(u8, 200);
     const zero = try allocator.alloc(u8, 0);
-    
+
     defer allocator.free(a);
     defer allocator.free(b);
     defer allocator.free(zero);
@@ -802,3 +802,17 @@ test "zero byte allocation - not in histogram" {
         try testing.expectEqual(@as(usize, 0), tracked.getBytesBucket(i));
     }
 }
+
+test "getMemoryLogs initially length 0" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const mem_logs = tracked.getMemoryLogs();
+
+    try testing.expectEqual(0, mem_logs.count());
+}
+
+test 
