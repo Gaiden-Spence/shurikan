@@ -815,4 +815,19 @@ test "getMemoryLogs initially length 0" {
     try testing.expectEqual(0, mem_logs.count());
 }
 
-test 
+test "getMemoryLogs enrtry removed after freeing" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const bytes_10000 = try allocator.alloc(u8, 10000);
+    allocator.free(bytes_10000);
+
+    const mem_logs = tracked.getMemoryLogs();
+    try testing.expectEqual(0, mem_logs.count());
+}
+
