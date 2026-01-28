@@ -831,3 +831,55 @@ test "getMemoryLogs enrtry removed after freeing" {
     try testing.expectEqual(0, mem_logs.count());
 }
 
+test "getMemoryLogs single alloc defered" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const bytes_10000 = try allocator.alloc(u8, 10000);
+    defer allocator.free(bytes_10000);
+
+    const ptr_address = @intFromPtr(bytes_10000.ptr);
+    const mem_logs = tracked.getMemoryLogs();
+
+    try testing.expectEqual(10000, mem_logs.get(ptr_address).?.size);
+}
+
+test "getMemoryLogs - multiple allocations" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    // Store addresses
+    var addresses: [5]usize = undefined;
+    var slices: [5][]u8 = undefined;
+
+    // Allocate multiple blocks
+    for (0..10) |i| {
+        const size = (i + 1) * 100;
+        slices[i] = try allocator.alloc(u8, size);
+        addresses[i] = @intFromPtr(slices[i].ptr);
+    }
+
+    const mem_logs = tracked.getMemoryLogs();
+    try testing.expectEqual(@as(usize, 5), mem_logs.count());
+
+    for (0..10) |i| {
+        const expected_size = (i + 1) * 100;
+        if (mem_logs.get(addresses[i])) |info| {
+            try testing.expectEqual(expected_size, info.size);
+        }
+    }
+
+    for (slices) |slice| {
+        allocator.free(slice);
+    }
+}
