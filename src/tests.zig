@@ -870,7 +870,7 @@ test "getMemoryLogs - multiple allocations" {
     }
 
     const mem_logs = tracked.getMemoryLogs();
-    try testing.expectEqual(@as(usize, 5), mem_logs.count());
+    try testing.expectEqual(@as(usize, 10), mem_logs.count());
 
     for (0..10) |i| {
         const expected_size = (i + 1) * 100;
@@ -892,4 +892,35 @@ test "getChurnRate is initially 0" {
     defer tracked.memory_logs.deinit();
 
     try testing.expectEqual(@as(usize, 0), tracked.getChurnRate());
+}
+
+test "getChurnRate - multiple allocations" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    for (0..10) |_| {
+        const bytes_100 = try allocator.alloc(u8, 100);
+        allocator.free(bytes_100);
+
+        std.Thread.sleep(150 * std.time.ns_per_ms);
+
+        const bytes_200 = try allocator.alloc(u8, 200);
+        allocator.free(bytes_200);
+
+        const total_allocations = tracked.total_allocations;
+        const time_diff: i64 = tracked.last_allocation_timestamp -
+            tracked.first_allocation_timestamp;
+
+        const churn_rate_manual = @as(f64, @floatFromInt(time_diff)) /
+            @as(f64, @floatFromInt(total_allocations));
+
+        const churn_rate = tracked.getChurnRate();
+
+        try testing.expectEqual(@as(f64, churn_rate_manual), churn_rate);
+    }
 }
