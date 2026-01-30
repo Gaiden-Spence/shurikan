@@ -4,6 +4,7 @@ const histogram_tag_bucket = enum { Tiny, Small, Medium, Large, Giant };
 const memory_log_info = struct { timestamp: i64, size: usize, location: usize };
 const log = std.log.scoped(.memory_tracker);
 
+///zero byte allocations will not be tracked
 pub const TrackedAllocator = struct {
     parent: std.mem.Allocator,
 
@@ -122,8 +123,12 @@ pub const TrackedAllocator = struct {
 
     fn resize(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
-        const success = self.parent.rawResize(buf, buf_align, new_len, ret_addr);
 
+        if (buf.len == 0 and new_len == 0) {
+            return self.parent.rawResize(buf, buf_align, new_len, ret_addr);
+        }
+
+        const success = self.parent.rawResize(buf, buf_align, new_len, ret_addr);
         if (success) {
             const old_len = buf.len;
             const addr = @intFromPtr(buf.ptr);
@@ -154,6 +159,11 @@ pub const TrackedAllocator = struct {
 
     fn free(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, ret_addr: usize) void {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
+
+        if (buf.len == 0) {
+            self.parent.rawFree(buf, buf_align, ret_addr);
+            return;
+        }
 
         const addr = @intFromPtr(buf.ptr);
         const actual_size = if (self.memory_logs.get(addr)) |info| blk: {
