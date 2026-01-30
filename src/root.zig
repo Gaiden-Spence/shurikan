@@ -286,10 +286,10 @@ pub const TrackedAllocator = struct {
             log.info("The bucket {s} makes is {d:.4}% of allocations ", .{ array_bucket_str, bucket_pct });
             const bar_length = @as(usize, @intFromFloat((bucket_pct / 100) * 40));
 
-            for (0..bar_length) |_| {
-                log.info("█", .{});
-            }
-            log.info("\n", .{});
+            var bar_buffer: [40]u8 = undefined;
+            @memset(&bar_buffer, '█');
+
+            log.info("{s}\n", .{bar_buffer[0..bar_length]});
         }
     }
 
@@ -304,10 +304,10 @@ pub const TrackedAllocator = struct {
             log.info("The bucket {s} makes up {d:.4}% for all bytes.", .{ array_bucket_str, bucket_pct });
             const bar_length = @as(usize, @intFromFloat((bucket_pct / 100) * 40));
 
-            for (0..bar_length) |_| {
-                log.info("█", .{});
-            }
-            log.info("\n", .{});
+            var bar_buffer: [40]u8 = undefined;
+            @memset(&bar_buffer, '█');
+
+            log.info("{s}\n", .{bar_buffer[0..bar_length]});
         }
     }
 
