@@ -859,8 +859,8 @@ test "getMemoryLogs - multiple allocations" {
     const allocator = tracked.allocator();
 
     // Store addresses
-    var addresses: [5]usize = undefined;
-    var slices: [5][]u8 = undefined;
+    var addresses: [10]usize = undefined;
+    var slices: [10][]u8 = undefined;
 
     // Allocate multiple blocks
     for (0..10) |i| {
@@ -882,4 +882,14 @@ test "getMemoryLogs - multiple allocations" {
     for (slices) |slice| {
         allocator.free(slice);
     }
+}
+
+test "getChurnRate is initially 0" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    try testing.expectEqual(@as(usize, 0), tracked.getChurnRate());
 }
