@@ -979,7 +979,7 @@ test "getAvgDealloc - batch free with defer" {
     try testing.expectEqual(@as(f64, 300.0), tracked.getAvgDealloc());
 }
 
-test "getAvgDealloc - batch free with multiple allcations immediate deallocation" {
+test "getAvgDealloc - immediate deallocation" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
@@ -1026,4 +1026,24 @@ test "getEfficiency single alloc with deferement" {
     try testing.expectEqual(@as(f64, 0), tracked.getEfficiency());
 }
 
-// test "getEfficiency - batch free with d"
+test "getEfficiency - immediate deallocation" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    const bytes_100 = try allocator.alloc(u8, 100);
+    const bytes_1400 = try allocator.alloc(u8, 1400);
+    const bytes_200 = try allocator.alloc(u8, 200);
+    const bytes_300 = try allocator.alloc(u8, 300);
+
+    allocator.free(bytes_100);
+    allocator.free(bytes_1400);
+    defer allocator.free(bytes_300);
+    allocator.free(bytes_200);
+
+    try testing.expectEqual(@as(f64, 0.85), tracked.getEfficiency());
+}
