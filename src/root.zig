@@ -334,7 +334,7 @@ pub const TrackedAllocator = struct {
 
     pub fn getAvgDealloc(self: *TrackedAllocator) f64 {
         if (self.total_deallocations == 0) return 0.0;
-        const avg_dealloc = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_deallocations)) * 100;
+        const avg_dealloc = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_deallocations));
         return avg_dealloc;
     }
 
