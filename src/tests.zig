@@ -960,27 +960,33 @@ test "getAvgDealloc - batch free with defer" {
     const allocator = tracked.allocator();
 
     {
-        // Store allocations in an array
         var allocations: [100][]u8 = undefined;
-        
-        // Defer block that frees everything
+
         defer {
             for (allocations) |bytes| {
                 allocator.free(bytes);
             }
         }
 
-        // Allocate 50 blocks of 100 bytes
         for (0..50) |i| {
             allocations[i] = try allocator.alloc(u8, 100);
         }
 
-        // Allocate 50 blocks of 500 bytes
         for (0..50) |i| {
             allocations[50 + i] = try allocator.alloc(u8, 500);
         }
-        
     }
-    
     try testing.expectEqual(@as(f64, 30000.0), tracked.getAvgDealloc());
 }
+
+test "getEfficiency- initially 0" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    try testing.expectEqual(@as(f64, 0), tracked.getEfficiency());
+}
+
+
