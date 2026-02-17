@@ -75,7 +75,7 @@ pub const TrackedAllocator = struct {
         self.total_allocations += 1;
         self.active_allocations += 1;
 
-        //Track Histogram allocations and bytes
+        //Track Histogram bucket allocations and bytes
         switch (len) {
             1...64 => {
                 self.alloc_array_bucket[0] += 1;
