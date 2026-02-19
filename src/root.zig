@@ -340,12 +340,15 @@ pub const TrackedAllocator = struct {
 
     pub fn getEfficiency(self: *TrackedAllocator) f64 {
         if (self.total_bytes == 0) return 0.0;
-        const eff_ratio = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_bytes));
+        const eff_ratio = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_bytes)) * 100;
         return eff_ratio;
     }
 
-    pub fn getTopAlloc(self: *TrackedAllocator) ?memory_log_info {
-        return self.largest_allocation;
+    pub fn getTopAlloc(self: *TrackedAllocator) ?usize {
+        if (self.largest_allocation) |top| {
+            return top.size;
+        }
+        return null;
     }
 
     pub fn percentileMemory(self: *TrackedAllocator, pct: f64) !f64 {
