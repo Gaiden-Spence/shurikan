@@ -1045,5 +1045,36 @@ test "getEfficiency - immediate deallocation" {
     defer allocator.free(bytes_300);
     allocator.free(bytes_200);
 
-    try testing.expectEqual(@as(f64, 0.85), tracked.getEfficiency());
+    try testing.expectEqual(@as(f64, 85), tracked.getEfficiency());
 }
+
+test "getTopAlloc is initially null" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    try testing.expectEqual(null, tracked.getTopAlloc());
+}
+
+test "getTopAlloc multiple allocations" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+    const bytes_tiny = try allocator.alloc(u8, 200);
+
+    allocator.free(bytes_tiny);
+
+    for (0..100) |i| {
+        const bytes = try allocator.alloc(u8, i);
+        allocator.free(bytes);
+    }
+
+    try testing.expectEqual(@as(?usize, 200), tracked.getTopAlloc());
+}
+
