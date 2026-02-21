@@ -1078,3 +1078,24 @@ test "getTopAlloc multiple allocations" {
     try testing.expectEqual(@as(?usize, 200), tracked.getTopAlloc());
 }
 
+test "percentileMemory is invalid" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    for (0..100) |i| {
+        const bytes = try allocator.alloc(u8, i);
+        allocator.free(bytes);
+    }
+
+    const neg_percentile = tracked.percentileMemory(-1.5) catch |err| err;
+    const percentile_101 = tracked.percentileMemory(100.01) catch |err2| err2;
+
+    try testing.expectError(error.InvalidPercentile, neg_percentile);
+    try testing.expectError(error.InvalidPercentile, percentile_101);
+}
+
