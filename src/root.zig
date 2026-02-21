@@ -358,14 +358,14 @@ pub const TrackedAllocator = struct {
 
         const temp_alloc = self.parent;
 
-        var percentile_array = std.ArrayList(usize).init(temp_alloc);
-        defer percentile_array.deinit();
+        var percentile_array: std.ArrayList(usize) = .empty;
+        defer percentile_array.deinit(temp_alloc);
 
         var mem_log_iterator = self.memory_logs.iterator();
 
         while (mem_log_iterator.next()) |entry| {
             const val_struct = entry.value_ptr.*;
-            try percentile_array.append(val_struct.size);
+            try percentile_array.append(temp_alloc, val_struct.size);
         }
 
         if (percentile_array.items.len == 0) {
@@ -432,17 +432,17 @@ pub const TrackedAllocator = struct {
 
         const temp_alloc = self.parent;
 
-        var smaller = std.ArrayList(usize).init(temp_alloc);
-        defer smaller.deinit();
-        try smaller.ensureTotalCapacity(arr.len);
+        var smaller: std.ArrayList(usize) = .empty;
+        defer smaller.deinit(temp_alloc);
+        try smaller.ensureTotalCapacity(temp_alloc, arr.len);
 
-        var equal = std.ArrayList(usize).init(temp_alloc);
-        defer equal.deinit();
-        try equal.ensureTotalCapacity(arr.len);
+        var equal: std.ArrayList(usize) = .empty;
+        defer equal.deinit(temp_alloc);
+        try equal.ensureTotalCapacity(temp_alloc, arr.len);
 
-        var larger = std.ArrayList(usize).init(temp_alloc);
-        defer larger.deinit();
-        try larger.ensureTotalCapacity(arr.len);
+        var larger: std.ArrayList(usize) = .empty;
+        defer larger.deinit(temp_alloc);
+        try larger.ensureTotalCapacity(temp_alloc, arr.len);
 
         // Choose pivot (middle element is often a good choice)
         const pivot = arr[arr.len / 2];
