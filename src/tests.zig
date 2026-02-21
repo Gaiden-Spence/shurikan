@@ -1092,10 +1092,6 @@ test "percentileMemory is invalid" {
         allocator.free(bytes);
     }
 
-    const neg_percentile = tracked.percentileMemory(-1.5) catch |err| err;
-    const percentile_101 = tracked.percentileMemory(100.01) catch |err2| err2;
-
-    try testing.expectError(error.InvalidPercentile, neg_percentile);
-    try testing.expectError(error.InvalidPercentile, percentile_101);
+    try testing.expectError(error.InvalidPercentile, tracked.percentileMemory(-1.5));
+    try testing.expectError(error.InvalidPercentile, tracked.percentileMemory(101.0));
 }
-
