@@ -1095,3 +1095,31 @@ test "percentileMemory is invalid" {
     try testing.expectError(error.InvalidPercentile, tracked.percentileMemory(-1.5));
     try testing.expectError(error.InvalidPercentile, tracked.percentileMemory(101.0));
 }
+
+test "percentileMemory multiple percetiles" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+    var slices: [1000][]u8 = undefined;
+
+    for (0..1000) |i| {
+        const size = (i + 17);
+        slices[i] = try allocator.alloc(u8, size);
+    }
+
+    var start: f64 = 0.0;
+    const step: f64 = 0.01;
+
+    while (start < 100) : (start += step) {
+        _ = try tracked.percentileMemory(start);
+        try testing.expect(true);
+    }
+
+    for (slices) |slice| {
+        allocator.free(slice);
+    }
+}
