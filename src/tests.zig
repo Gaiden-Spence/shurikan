@@ -1096,7 +1096,7 @@ test "percentileMemory is invalid" {
     try testing.expectError(error.InvalidPercentile, tracked.percentileMemory(101.0));
 }
 
-test "percentileMemory multiple percetiles" {
+test "percentileMemory multiple percentile ranges" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
@@ -1117,6 +1117,34 @@ test "percentileMemory multiple percetiles" {
     while (start < 100) : (start += step) {
         _ = try tracked.percentileMemory(start);
         try testing.expect(true);
+    }
+
+    for (slices) |slice| {
+        allocator.free(slice);
+    }
+}
+
+test "percentileMemory multiple correct calculations" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    var slices: [5][]u8 = undefined;
+    const percentiles: [5]f64 = [_]f64{ 0.0, 33.0, 55.43, 95.5, 100.0 };
+    const percentile_calcs: [5]f64 = [_]f64{ 1, 2.32, 3.2172, 4.82, 5 };
+
+    for (0..5) |i| {
+        const size = i + 1;
+        slices[i] = try allocator.alloc(u8, size);
+    }
+
+    for (percentiles, percentile_calcs) |percentile, raw_calc| {
+        const percentile_func_calc = try tracked.percentileMemory(percentile);
+        try testing.expectApproxEqRel(raw_calc, percentile_func_calc, 1e-2);
     }
 
     for (slices) |slice| {
