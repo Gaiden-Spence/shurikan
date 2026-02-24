@@ -7,6 +7,7 @@ const log = std.log.scoped(.memory_tracker);
 ///zero byte allocations will not be tracked
 pub const TrackedAllocator = struct {
     parent: std.mem.Allocator,
+    mutex: std.Thread.Mutex = .{},
 
     total_bytes: usize = 0, //total bytes used
     current_bytes: usize = 0,
@@ -53,6 +54,9 @@ pub const TrackedAllocator = struct {
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
         const ptr = self.parent.rawAlloc(len, ptr_align, ret_addr);
+
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
         if (ptr == null) {
             self.null_allocations += 1;
@@ -130,6 +134,9 @@ pub const TrackedAllocator = struct {
 
         const success = self.parent.rawResize(buf, buf_align, new_len, ret_addr);
         if (success) {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+
             const old_len = buf.len;
             const addr = @intFromPtr(buf.ptr);
 
@@ -165,8 +172,10 @@ pub const TrackedAllocator = struct {
             return;
         }
 
+        self.mutex.lock();
         const addr = @intFromPtr(buf.ptr);
         const actual_size = if (self.memory_logs.get(addr)) |info| blk: {
+            defer self.mutex.unlock();
             const current_time = std.time.milliTimestamp();
             const lifetime = current_time - info.timestamp;
 
@@ -204,6 +213,9 @@ pub const TrackedAllocator = struct {
 
         if (new_ptr) |p| {
             const new_addr = @intFromPtr(p);
+
+            self.mutex.lock();
+            defer self.mutex.unlock();
 
             // Update byte tracking (similar to resize)
             if (new_len > old_len) {
