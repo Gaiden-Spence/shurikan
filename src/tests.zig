@@ -1162,13 +1162,11 @@ test "resetAttributes resets all attributes" {
     const allocator = tracked.allocator();
     var slices: [100][]u8 = undefined;
 
-    // Perform allocations to "dirty" the attributes
     for (0..100) |i| {
         const size = i + 1;
         slices[i] = try allocator.alloc(u8, size);
     }
 
-    // Reset everything
     tracked.resetAttributes();
 
     const LargestAllocType = @TypeOf(tracked.largest_allocation);
