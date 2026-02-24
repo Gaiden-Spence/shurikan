@@ -467,15 +467,32 @@ pub const TrackedAllocator = struct {
     }
 
     pub fn resetAttributes(self: *TrackedAllocator) void {
-        const T = @TypeOf(self);
+        const T = @TypeOf(self.*);
 
         inline for (std.meta.fields(T)) |field| {
-            const field_value = &@field(self, field.name);
+            // 1. Skip fields we don't want to reset
+            if (comptime std.mem.eql(u8, field.name, "parent")) continue;
 
-            if (@hasDecl(@TypeOf(field_value.*), "clearRetainingCapacity")) {
-                field_value.clearRetainingCapacity();
+            const field_ptr = &@field(self, field.name);
+            const FieldType = field.type;
+
+            // 2. Check if the type is a container (struct/union) before checking for Decls
+            const is_container = switch (@typeInfo(FieldType)) {
+                .@"struct", .@"union", .@"enum" => true,
+                else => false,
+            };
+
+            if (is_container and @hasDecl(FieldType, "clearRetainingCapacity")) {
+                field_ptr.clearRetainingCapacity();
             } else {
-                @field(self, field.name) = @field(T{}, field.name);
+                // 3. Reset using Zig 0.15 default_value_ptr
+                if (field.default_value_ptr) |ptr| {
+                    const default: *const FieldType = @ptrCast(@alignCast(ptr));
+                    @field(self, field.name) = default.*;
+                } else {
+                    // Fallback to zero/null if no default is specified
+                    @field(self, field.name) = std.mem.zeroes(FieldType);
+                }
             }
         }
     }
