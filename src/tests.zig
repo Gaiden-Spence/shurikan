@@ -1151,3 +1151,30 @@ test "percentileMemory multiple correct calculations" {
         allocator.free(slice);
     }
 }
+
+test "resetAttributes resets all attributes" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+    var slices: [100][]u8 = undefined;
+
+    // Perform allocations to "dirty" the attributes
+    for (0..100) |i| {
+        const size = i + 1;
+        slices[i] = try allocator.alloc(u8, size);
+    }
+
+    // Reset everything
+    tracked.resetAttributes();
+
+    const LargestAllocType = @TypeOf(tracked.largest_allocation);
+    try testing.expectEqual(@as(LargestAllocType, null), tracked.largest_allocation);
+
+    for (slices) |slice| {
+        gpa.allocator().free(slice);
+    }
+}
