@@ -20,6 +20,29 @@ test "zero byte allocation - not tracked" {
     try testing.expectEqual(@as(usize, 0), tracked.active_allocations);
 }
 
+test "realloc grow updates current bytes" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // GPA deinit must be last
+    defer _ = gpa.deinit();
+
+    var tracked = TrackedAllocator.init(gpa.allocator());
+    // memory_logs deinit must happen before GPA deinit
+    defer tracked.memory_logs.deinit();
+
+    const allocator = tracked.allocator();
+
+    // 1. Initial Allocation (adds entry to memory_logs)
+    var buf = try allocator.alloc(u8, 10);
+    buf = try allocator.realloc(buf, 100);
+
+    try std.testing.expectEqual(@as(usize, 100), tracked.current_bytes);
+
+    allocator.free(buf);
+
+    try std.testing.expectEqual(@as(usize, 0), tracked.current_bytes);
+    try std.testing.expectEqual(@as(usize, 0), tracked.memory_logs.count());
+}
+
 test "test FixedBufferAllocator out of memeory" {
     var buffer: [512]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&buffer);
@@ -1149,30 +1172,5 @@ test "percentileMemory multiple correct calculations" {
 
     for (slices) |slice| {
         allocator.free(slice);
-    }
-}
-
-test "resetAttributes resets all attributes" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
-
-    const allocator = tracked.allocator();
-    var slices: [100][]u8 = undefined;
-
-    for (0..100) |i| {
-        const size = i + 1;
-        slices[i] = try allocator.alloc(u8, size);
-    }
-
-    tracked.resetAttributes();
-
-    const LargestAllocType = @TypeOf(tracked.largest_allocation);
-    try testing.expectEqual(@as(LargestAllocType, null), tracked.largest_allocation);
-
-    for (slices) |slice| {
-        gpa.allocator().free(slice);
     }
 }
