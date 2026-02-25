@@ -7,7 +7,6 @@ const log = std.log.scoped(.memory_tracker);
 ///zero byte allocations will not be tracked
 pub const TrackedAllocator = struct {
     parent: std.mem.Allocator,
-    mutex: std.Thread.Mutex = .{},
 
     total_bytes: usize = 0, //total bytes used
     current_bytes: usize = 0,
@@ -26,6 +25,7 @@ pub const TrackedAllocator = struct {
 
     memory_logs: std.AutoHashMap(usize, memory_log_info),
     largest_allocation: ?memory_log_info = null,
+    mutex: std.Thread.Mutex = .{},
 
     total_lifetime: i64 = 0,
     lifetime_count: usize = 0,
@@ -53,10 +53,10 @@ pub const TrackedAllocator = struct {
 
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
-        const ptr = self.parent.rawAlloc(len, ptr_align, ret_addr);
-
         self.mutex.lock();
         defer self.mutex.unlock();
+
+        const ptr = self.parent.rawAlloc(len, ptr_align, ret_addr);
 
         if (ptr == null) {
             self.null_allocations += 1;
@@ -128,15 +128,15 @@ pub const TrackedAllocator = struct {
     fn resize(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
 
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         if (buf.len == 0 and new_len == 0) {
             return self.parent.rawResize(buf, buf_align, new_len, ret_addr);
         }
 
         const success = self.parent.rawResize(buf, buf_align, new_len, ret_addr);
         if (success) {
-            self.mutex.lock();
-            defer self.mutex.unlock();
-
             const old_len = buf.len;
             const addr = @intFromPtr(buf.ptr);
 
@@ -167,15 +167,16 @@ pub const TrackedAllocator = struct {
     fn free(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, ret_addr: usize) void {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
 
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         if (buf.len == 0) {
             self.parent.rawFree(buf, buf_align, ret_addr);
             return;
         }
 
-        self.mutex.lock();
         const addr = @intFromPtr(buf.ptr);
         const actual_size = if (self.memory_logs.get(addr)) |info| blk: {
-            defer self.mutex.unlock();
             const current_time = std.time.milliTimestamp();
             const lifetime = current_time - info.timestamp;
 
@@ -206,6 +207,10 @@ pub const TrackedAllocator = struct {
 
     fn remap(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
+
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         const old_addr = @intFromPtr(buf.ptr);
         const old_len = buf.len;
 
@@ -213,9 +218,6 @@ pub const TrackedAllocator = struct {
 
         if (new_ptr) |p| {
             const new_addr = @intFromPtr(p);
-
-            self.mutex.lock();
-            defer self.mutex.unlock();
 
             // Update byte tracking (similar to resize)
             if (new_len > old_len) {
@@ -475,37 +477,6 @@ pub const TrackedAllocator = struct {
             return pivot;
         } else {
             return quickSelect(self, larger.items, k - smaller.items.len - equal.items.len);
-        }
-    }
-
-    pub fn resetAttributes(self: *TrackedAllocator) void {
-        const T = @TypeOf(self.*);
-
-        inline for (std.meta.fields(T)) |field| {
-            // 1. Skip fields we don't want to reset
-            if (comptime std.mem.eql(u8, field.name, "parent")) continue;
-
-            const field_ptr = &@field(self, field.name);
-            const FieldType = field.type;
-
-            // 2. Check if the type is a container (struct/union) before checking for Decls
-            const is_container = switch (@typeInfo(FieldType)) {
-                .@"struct", .@"union", .@"enum" => true,
-                else => false,
-            };
-
-            if (is_container and @hasDecl(FieldType, "clearRetainingCapacity")) {
-                field_ptr.clearRetainingCapacity();
-            } else {
-                // 3. Reset using Zig 0.15 default_value_ptr
-                if (field.default_value_ptr) |ptr| {
-                    const default: *const FieldType = @ptrCast(@alignCast(ptr));
-                    @field(self, field.name) = default.*;
-                } else {
-                    // Fallback to zero/null if no default is specified
-                    @field(self, field.name) = std.mem.zeroes(FieldType);
-                }
-            }
         }
     }
 
