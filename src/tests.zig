@@ -26,12 +26,10 @@ test "realloc grow updates current bytes" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    // memory_logs deinit must happen before GPA deinit
     defer tracked.memory_logs.deinit();
 
     const allocator = tracked.allocator();
 
-    // 1. Initial Allocation (adds entry to memory_logs)
     var buf = try allocator.alloc(u8, 10);
     buf = try allocator.realloc(buf, 100);
 
