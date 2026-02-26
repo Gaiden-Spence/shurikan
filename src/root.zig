@@ -190,6 +190,16 @@ pub const TrackedAllocator = struct {
         return success;
     }
 
+    /// Frees an existing allocation and forwards it to the parent allocator.
+    ///
+    /// Args:
+    ///   ctx: Opaque pointer cast to `*TrackedAllocator`.
+    ///   buf: The allocation to free.
+    ///   buf_align: Alignment of the allocation.
+    ///   ret_addr: Return address used for debugging.
+    ///
+    /// Notes:
+    ///     Zero byte slices are forwarded to the parent but not tracked.
     fn free(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, ret_addr: usize) void {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
 
@@ -230,7 +240,23 @@ pub const TrackedAllocator = struct {
         self.total_deallocations += 1;
         self.active_allocations -= 1;
     }
-
+    /// Attempts to remap an existing allocation to a new size via the parent allocator,
+    /// potentially moving memory to a new address.
+    ///
+    /// Args:
+    ///   ctx: Opaque pointer cast to `*TrackedAllocator`.
+    ///   buf: The existing allocation to remap.
+    ///   buf_align: Alignment of the existing allocation.
+    ///   new_len: The desired new size in bytes.
+    ///   ret_addr: Return address used for debugging.
+    ///
+    /// Returns:
+    ///   A pointer to the remapped memory, or null if the remap failed or is unsupported.
+    ///
+    /// Notes:
+    /// Makes no tracking changes if the parent allocator does not support remap
+    /// or cannot fulfill the request.
+    ///
     fn remap(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
 
@@ -271,7 +297,14 @@ pub const TrackedAllocator = struct {
 
         return new_ptr;
     }
-
+    ///This function gets how many bytes are in usage
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     The number of bytes actively allocated and not freed.
+    ///
     pub fn getCurrentUsage(self: *TrackedAllocator) usize {
         return self.current_bytes;
     }
