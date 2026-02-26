@@ -297,7 +297,7 @@ pub const TrackedAllocator = struct {
 
         return new_ptr;
     }
-    ///This function gets how many bytes are in usage
+    /// This function gets how many bytes are in usage
     ///
     /// Args:
     ///     None
@@ -309,18 +309,50 @@ pub const TrackedAllocator = struct {
         return self.current_bytes;
     }
 
+    /// This function gets the number of bytes used
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     The number of total bytes used allocated and freed.
+    ///
     pub fn getTotalBytes(self: *TrackedAllocator) usize {
         return self.total_bytes;
     }
 
+    /// This function returns how many bytes were active at any given point
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     The most of amount of bytes being used at any one time.
+    ///
     pub fn getPeakUsage(self: *TrackedAllocator) usize {
         return self.peak_usage;
     }
 
+    /// This function gets how many bytes were freed.
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     The total number of bytes that have been freed currently.
+    ///
     pub fn getBytesFreed(self: *TrackedAllocator) usize {
         return self.bytes_freed;
     }
 
+    /// This function returns the total allocations and deallocations.
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     Optional struct that stores both total alloactions and deallocations.
+    ///
     pub fn getTotalAllocAndFrees(self: *TrackedAllocator) struct { usize, usize } {
         return .{ self.total_allocations, self.total_deallocations };
     }
@@ -329,18 +361,42 @@ pub const TrackedAllocator = struct {
         return self.active_allocations;
     }
 
+    /// This fucntion will calculate the average allocation.
+    ///
+    /// Args:
+    ///     None
+    ///
+    ///Returns:
+    ///     The average allocation.
+    ///
     pub fn getAvgAlloc(self: *TrackedAllocator) f64 {
         if (self.total_allocations == 0) return 0.0;
         const avg_alloc = @as(f64, @floatFromInt(self.total_bytes)) / @as(f64, @floatFromInt(self.total_allocations));
         return avg_alloc;
     }
 
+    /// This function will calculate the frag ratio.
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     The frag ratio which is the current bytes in usage divide by the total bytes.
+    ///
     pub fn getFragRatio(self: *TrackedAllocator) f64 {
         if (self.total_bytes == 0) return 0.0;
         const frag_ratio = @as(f64, @floatFromInt(self.current_bytes)) / @as(f64, @floatFromInt(self.total_bytes));
         return frag_ratio;
     }
 
+    /// This function calculates the average lifetime.
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     The average time an alloaction lasts before being freed.
+    ///
     pub fn getAvgLifeTime(self: *TrackedAllocator) f64 {
         if (self.lifetime_count > 0) {
             const avg_lifetime = @as(f64, @floatFromInt(self.total_lifetime)) / @as(f64, @floatFromInt(self.lifetime_count));
@@ -350,14 +406,38 @@ pub const TrackedAllocator = struct {
         }
     }
 
+    /// This function gets how many allocations for each bucket
+    ///
+    /// Args:
+    ///     index_bucket: the index for which bucket we want to retrieve.
+    ///
+    /// Returns:
+    ///     How many allocations that belong the specific bucket.
+    ///
     pub fn getAllocBucket(self: *TrackedAllocator, index_bucket: usize) usize {
         return self.alloc_array_bucket[index_bucket];
     }
 
+    /// This function gets how are in each bucket.
+    ///
+    /// Args:
+    ///     bytes_bucket: the index for which bucket we want to retireve
+    ///
+    /// Returns:
+    ///     How many bytes belong to each specific bucket.
+    ///
     pub fn getBytesBucket(self: *TrackedAllocator, bytes_bucket: usize) usize {
         return self.bytes_array_bucket[bytes_bucket];
     }
 
+    ///This function makes an in terminal histogram based on allocations in each bucket
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     None
+    ///
     pub fn makeAllocHistogram(self: *TrackedAllocator) void {
         for (std.enums.values(histogram_tag_bucket)) |bucket| {
             const array_bucket_str = @tagName(bucket);
@@ -376,6 +456,14 @@ pub const TrackedAllocator = struct {
         }
     }
 
+    ///This function makes an in terminal histogram based on bytes in each bucket
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     None
+    ///
     pub fn makeByteHistogram(self: *TrackedAllocator) void {
         for (std.enums.values(histogram_tag_bucket)) |bucket| {
             const array_bucket_str = @tagName(bucket);
@@ -394,10 +482,26 @@ pub const TrackedAllocator = struct {
         }
     }
 
+    ///This fucntion retrieves memory logs
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     Hashmap of memory logs containing the timestamp, allocation size, and memory address.
+    ///
     pub fn getMemoryLogs(self: *TrackedAllocator) std.AutoHashMap(usize, memory_log_info) {
         return self.memory_logs;
     }
 
+    ///This function calculates the churn rate
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Retruns:
+    ///     Calculates how quickly the alloactions are occuring.
+    ///
     pub fn getChurnRate(self: *TrackedAllocator) f64 {
         if (self.total_allocations == 0) return 0.0;
         const time_diff: i64 = self.last_allocation_timestamp - self.first_allocation_timestamp;
@@ -405,18 +509,41 @@ pub const TrackedAllocator = struct {
         return churn_rate;
     }
 
+    /// This function calculates the average free size
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns the average free size.
+    ///
     pub fn getAvgDealloc(self: *TrackedAllocator) f64 {
         if (self.total_deallocations == 0) return 0.0;
         const avg_dealloc = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_deallocations));
         return avg_dealloc;
     }
 
+    /// This function caclulates the efficiency ratio
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Retunrs:
+    ///     Calculates the how many bytes freed by how many bytes are been used.
+    ///
     pub fn getEfficiency(self: *TrackedAllocator) f64 {
         if (self.total_bytes == 0) return 0.0;
         const eff_ratio = @as(f64, @floatFromInt(self.bytes_freed)) / @as(f64, @floatFromInt(self.total_bytes)) * 100;
         return eff_ratio;
     }
 
+    /// This function keeps track of the largest alloaction.
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     Largest allocation
+    ///
     pub fn getTopAlloc(self: *TrackedAllocator) ?usize {
         if (self.largest_allocation) |top| {
             return top.size;
@@ -424,6 +551,18 @@ pub const TrackedAllocator = struct {
         return null;
     }
 
+    ///This function calculates the active allocation in 'memory logs'.
+    ///
+    /// Args:
+    ///     pct: the percentile that we want
+    ///
+    /// Returns:
+    ///     The allocation percentile.
+    ///
+    /// Errors:
+    ///     error.InvalidPercentile: If `pct` is outside the range 0 to 100.
+    ///     error.EmptyArray: If there are no active allocations to calculate from.
+    ///
     pub fn percentileMemory(self: *TrackedAllocator, pct: f64) !f64 {
         if (pct < 0 or pct > 100) {
             return error.InvalidPercentile;
@@ -539,6 +678,14 @@ pub const TrackedAllocator = struct {
         }
     }
 
+    ///This function gives full analytics on for your memory alloacations
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     None
+    ///
     pub fn logAllStats(self: *TrackedAllocator) !void {
 
         //Baseline Analytics
