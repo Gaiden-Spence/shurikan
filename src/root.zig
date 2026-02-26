@@ -51,6 +51,17 @@ pub const TrackedAllocator = struct {
         };
     }
 
+    ///Allocates a new block of 'len' bytes with specified alignment.
+    ///
+    /// Args:
+    ///     ctx: opaque pointer cast to '*TrackedAllocator'.
+    ///     len: number of bytes to allocate
+    ///     ptr_align: required alignment for the allocation.
+    ///     ret_addr: return address used for debugging.
+    ///
+    /// Returns:
+    ///     a pointer to the allocated memory, or null if the allocation failed
+    ///
     fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
         self.mutex.lock();
@@ -125,6 +136,21 @@ pub const TrackedAllocator = struct {
         return ptr;
     }
 
+    /// Attempts to resize an existing allocation in place without moving memory.
+    ///
+    /// Args:
+    ///   ctx: Opaque pointer cast to `*TrackedAllocator`.
+    ///   buf: The existing allocation to resize.
+    ///   buf_align: Alignment of the existing allocation.
+    ///   new_len: The desired new size in bytes.
+    ///   ret_addr: Return address used for debugging.
+    ///
+    /// Returns:
+    ///   True if the resize succeeded, false otherwise.
+    ///
+    /// Notes:
+    ///     Makes no tracking changes if the parent allocator cannot fulfill the resize.
+    ///
     fn resize(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *TrackedAllocator = @ptrCast(@alignCast(ctx));
 
