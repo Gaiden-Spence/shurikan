@@ -240,6 +240,7 @@ pub const TrackedAllocator = struct {
         self.total_deallocations += 1;
         self.active_allocations -= 1;
     }
+
     /// Attempts to remap an existing allocation to a new size via the parent allocator,
     /// potentially moving memory to a new address.
     ///
@@ -297,6 +298,21 @@ pub const TrackedAllocator = struct {
 
         return new_ptr;
     }
+
+    ///This function deinitializes the memory logs
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Returns:
+    ///     None
+    ///
+    /// Notes:
+    ///     Now users can just use tracked.deinit() to deinitialize the memory logs
+    pub fn deinit(self: *TrackedAllocator) void {
+        self.memory_logs.deinit();
+    }
+
     /// This function gets how many bytes are in usage
     ///
     /// Args:
@@ -357,6 +373,14 @@ pub const TrackedAllocator = struct {
         return .{ self.total_allocations, self.total_deallocations };
     }
 
+    ///This function get the active allocations
+    ///
+    /// Args:
+    ///     None
+    ///
+    /// Rerturns:
+    ///     Get the allocations still not yet freed.
+    ///
     pub fn getActiveAlloc(self: *TrackedAllocator) usize {
         return self.active_allocations;
     }
