@@ -7,7 +7,7 @@ test "zero byte allocation - not tracked" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -26,7 +26,7 @@ test "realloc grow updates current bytes" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -46,7 +46,7 @@ test "test FixedBufferAllocator out of memeory" {
     var fba = std.heap.FixedBufferAllocator.init(&buffer);
 
     var tracked_fba = TrackedAllocator.init(fba.allocator());
-    defer tracked_fba.memory_logs.deinit();
+    defer tracked_fba.deinit();
 
     const fba_allocator = tracked_fba.allocator();
 
@@ -60,7 +60,7 @@ test "resize tracking updates correctly" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -80,7 +80,7 @@ test "realloc updates memory logs" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -108,7 +108,7 @@ test "realloc tracking shrinks correctly" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -128,7 +128,7 @@ test "test getCurrentUsage multiple allocators" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -160,7 +160,7 @@ test "test getCurrentUsage multiple allocators" {
     var fba = std.heap.FixedBufferAllocator.init(&buffer);
 
     var tracked_fba = TrackedAllocator.init(fba.allocator());
-    defer tracked_fba.memory_logs.deinit();
+    defer tracked_fba.deinit();
 
     const fba_allocator = tracked_fba.allocator();
 
@@ -179,7 +179,7 @@ test "getBytesFreed - no allocations returns zero" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(@as(usize, 0), tracked.getBytesFreed());
 }
@@ -190,7 +190,7 @@ test "test getBytesFreed multiple allocators" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -261,7 +261,7 @@ test "test getTotalBytes total greater than current" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
     const bytes = try allocator.alloc(u8, 100);
@@ -281,7 +281,7 @@ test "test getTotalBytes initial case 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(@as(usize, 0), tracked.getTotalBytes());
 }
@@ -291,7 +291,7 @@ test "getPeakUsage - no peak returns 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(@as(usize, 0), tracked.getPeakUsage());
 }
@@ -301,7 +301,7 @@ test "getPeakUsage - multiple peaks" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -318,7 +318,7 @@ test "getTotalAllocAndFrees are 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const frees_and_allocs = tracked.getTotalAllocAndFrees();
 
@@ -331,7 +331,7 @@ test "getTotalAllocAndFrees single allocation and free" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -349,7 +349,7 @@ test "getTotalAllocAndFrees multiple alloc and frees" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -369,7 +369,7 @@ test "getTotalAllocAndFrees frees defered" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -389,7 +389,7 @@ test "getActiveAlloc initially 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(@as(usize, 0), tracked.getActiveAlloc());
 }
@@ -399,7 +399,7 @@ test "getActiveAlloc - multiple allocations no frees" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -418,7 +418,7 @@ test "getActiveAlloc - some allocations freed" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -438,7 +438,7 @@ test "getActiveAlloc - all allocations freed" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -456,7 +456,7 @@ test "getAvgAlloc initially 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(@as(f64, 0.0), tracked.getAvgAlloc());
 }
@@ -466,7 +466,7 @@ test "getAvgAlloc single allocation" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -483,7 +483,7 @@ test "zero byte allocation - does not affect average" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -505,7 +505,7 @@ test "getAvgAlloc - various allocations" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -539,7 +539,7 @@ test "getFragRatio initially 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(@as(f64, 0), tracked.getFragRatio());
 }
@@ -549,7 +549,7 @@ test "getFragRatio defered single allocation" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -564,7 +564,7 @@ test "getFragRatio defered multiple allocations" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -588,7 +588,7 @@ test "getAvgLifeTime - no deallocations" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -603,7 +603,7 @@ test "getAvgLifeTime - single allocation" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -622,7 +622,7 @@ test "getAvgLifeTime - multiple allocations" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -646,7 +646,7 @@ test "getAllocBucket initial values 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(@as(usize, 0), tracked.getAllocBucket(0));
     try testing.expectEqual(@as(usize, 0), tracked.getAllocBucket(1));
@@ -660,7 +660,7 @@ test "getAllocBucket multiple allocations" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -690,7 +690,7 @@ test "getAllocBucket boundary allocations" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -728,7 +728,7 @@ test "getBytesBucket initial values 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(@as(usize, 0), tracked.getBytesBucket(0));
     try testing.expectEqual(@as(usize, 0), tracked.getBytesBucket(1));
@@ -742,7 +742,7 @@ test "getBytesBucket boundary allocations" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -780,7 +780,7 @@ test "getBytesBucket multiple allocations" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -810,7 +810,7 @@ test "zero byte allocation - not in histogram" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -829,7 +829,7 @@ test "getMemoryLogs initially length 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const mem_logs = tracked.getMemoryLogs();
 
@@ -841,7 +841,7 @@ test "getMemoryLogs enrtry removed after freeing" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -857,7 +857,7 @@ test "getMemoryLogs single alloc defered" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -875,7 +875,7 @@ test "getMemoryLogs - multiple allocations" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -910,7 +910,7 @@ test "getChurnRate is initially 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(@as(usize, 0), tracked.getChurnRate());
 }
@@ -920,7 +920,7 @@ test "getChurnRate - multiple allocations" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -951,7 +951,7 @@ test "getAvgDealloc - initially 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(@as(f64, 0), tracked.getAvgDealloc());
 }
@@ -961,7 +961,7 @@ test "getAvgDealloc - single with deferement allocation" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -976,7 +976,7 @@ test "getAvgDealloc - batch free with defer" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -1005,7 +1005,7 @@ test "getAvgDealloc - immediate deallocation" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -1027,7 +1027,7 @@ test "getEfficiency- initially 0" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(@as(f64, 0), tracked.getEfficiency());
 }
@@ -1052,7 +1052,7 @@ test "getEfficiency - immediate deallocation" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -1074,7 +1074,7 @@ test "getTopAlloc is initially null" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     try testing.expectEqual(null, tracked.getTopAlloc());
 }
@@ -1104,7 +1104,7 @@ test "percentileMemory is invalid" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
@@ -1122,7 +1122,7 @@ test "percentileMemory multiple percentile ranges" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
     var slices: [1000][]u8 = undefined;
@@ -1150,7 +1150,7 @@ test "percentileMemory multiple correct calculations" {
     defer _ = gpa.deinit();
 
     var tracked = TrackedAllocator.init(gpa.allocator());
-    defer tracked.memory_logs.deinit();
+    defer tracked.deinit();
 
     const allocator = tracked.allocator();
 
