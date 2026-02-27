@@ -1,4 +1,5 @@
 # TrackedAllocator — Shuriken Library
+<img src="naruto_shurikan.png" alt="Description of my image" width="85%"/>
 
 A wrapper allocator for Zig that tracks memory usage, allocation statistics, and lifetime metrics without interfering with the underlying allocator.
 
